@@ -7,8 +7,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 const links = [
-  { href: "/", label: "Home" },
-  { href: "/product-requests", label: "Feature Requests" },
+  { href: "/", label: "Feature Requests" },
   { href: "/consolidation", label: "Consolidation" },
   { href: "/orgs", label: "Orgs" },
 ];
@@ -27,7 +26,7 @@ export function HubNav() {
             {links.map((link) => {
               const active =
                 link.href === "/"
-                  ? pathname === "/"
+                  ? pathname === "/" || pathname.startsWith("/product-requests")
                   : pathname.startsWith(link.href);
               return (
                 <Link

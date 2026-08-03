@@ -69,14 +69,30 @@ export async function listConsolidationsWithArr() {
   const consolidations = await prisma.consolidation.findMany({
     include: {
       featureRequest: true,
-      requests: { include: { org: true } },
+      requests: {
+        include: productRequestInclude,
+        orderBy: { updatedAt: "desc" },
+      },
     },
   });
+
+  const priorityRank: Record<string, number> = { CRITICAL: 0, HIGH: 1, LOW: 2 };
 
   const rows = consolidations.map((c) => {
     const orgById = new Map(c.requests.map((r) => [r.org.id, r.org]));
     const orgs = [...orgById.values()];
     const arr = orgs.reduce((sum, org) => sum + (org.arr ?? 0), 0);
+    const csOwners = uniqueStrings(c.requests.map((r) => r.csOwner));
+    const priorities = uniqueStrings(c.requests.map((r) => r.priority));
+    const statuses = uniqueStrings(c.requests.map((r) => r.status));
+    const timelines = uniqueStrings(c.requests.map((r) => r.timeline));
+    const productNotes = c.requests.map((r) => r.productNotes).filter(Boolean) as string[];
+    const csNotes = c.requests.map((r) => r.csNotes).filter(Boolean) as string[];
+    const topPriority =
+      [...priorities].sort(
+        (a, b) => (priorityRank[a] ?? 99) - (priorityRank[b] ?? 99),
+      )[0] ?? null;
+
     return {
       id: c.id,
       name: c.name,
@@ -84,7 +100,16 @@ export async function listConsolidationsWithArr() {
       featureRequest: c.featureRequest,
       requestCount: c.requests.length,
       orgs,
+      wsNames: orgs.map((o) => o.name),
       arr,
+      csOwners,
+      priorities,
+      statuses,
+      topPriority,
+      timelines,
+      productNotes,
+      csNotes,
+      asks: c.requests.map((r) => r.ask),
       updatedAt: c.updatedAt,
     };
   });
@@ -93,6 +118,10 @@ export async function listConsolidationsWithArr() {
   const grandTotal = rows.reduce((sum, r) => sum + r.arr, 0);
 
   return { rows, grandTotal };
+}
+
+function uniqueStrings(values: Array<string | null | undefined>) {
+  return [...new Set(values.filter((v): v is string => Boolean(v)))];
 }
 
 export async function getConsolidationDetail(id: string) {
@@ -141,6 +170,8 @@ export async function updateProductRequest(
   id: string,
   data: Partial<{
     ask: string;
+    orgId: string;
+    consolidationId: string | null;
     csOwner: string | null;
     priority: string | null;
     status: string;
@@ -148,12 +179,114 @@ export async function updateProductRequest(
     timeline: string | null;
     csNotes: string | null;
     featureRequestId: string | null;
+    workspaceIds: string[];
   }>,
 ) {
-  return prisma.productRequest.update({
+  const { workspaceIds, ...scalarData } = data;
+
+  if (Object.keys(scalarData).length > 0) {
+    await prisma.productRequest.update({
+      where: { id },
+      data: scalarData as Prisma.ProductRequestUncheckedUpdateInput,
+    });
+  }
+
+  if (workspaceIds) {
+    return syncProductRequestWorkspaces(id, workspaceIds);
+  }
+
+  return prisma.productRequest.findUniqueOrThrow({
     where: { id },
-    data: data as Prisma.ProductRequestUpdateInput,
     include: productRequestInclude,
+  });
+}
+
+/**
+ * Add/remove workspaces for the feature (consolidation) that owns this product
+ * request. At least one workspace is required. New workspaces get a sibling
+ * product-request row; removed workspaces delete their sibling rows.
+ */
+export async function syncProductRequestWorkspaces(
+  productRequestId: string,
+  workspaceIds: string[],
+) {
+  const uniqueWorkspaceIds = [...new Set(workspaceIds.filter(Boolean))];
+  if (uniqueWorkspaceIds.length === 0) {
+    throw new Error("At least one workspace is required");
+  }
+
+  const current = await prisma.productRequest.findUniqueOrThrow({
+    where: { id: productRequestId },
+  });
+
+  let consolidationId = current.consolidationId;
+  if (!consolidationId) {
+    const baseName = current.ask.trim().slice(0, 80) || "Feature request";
+    let name = baseName;
+    let suffix = 2;
+    while (await prisma.consolidation.findUnique({ where: { name } })) {
+      name = `${baseName} (${suffix})`;
+      suffix += 1;
+    }
+    const consolidation = await prisma.consolidation.create({ data: { name } });
+    consolidationId = consolidation.id;
+    await prisma.productRequest.update({
+      where: { id: current.id },
+      data: { consolidationId },
+    });
+  }
+
+  const siblings = await prisma.productRequest.findMany({
+    where: { consolidationId },
+  });
+  const siblingOrgIds = new Set(siblings.map((s) => s.orgId));
+  const selected = new Set(uniqueWorkspaceIds);
+
+  const toRemove = siblings.filter((s) => !selected.has(s.orgId));
+  const toAdd = uniqueWorkspaceIds.filter((orgId) => !siblingOrgIds.has(orgId));
+
+  if (siblings.length - toRemove.length + toAdd.length < 1) {
+    throw new Error("At least one workspace is required");
+  }
+
+  const template = await prisma.productRequest.findUniqueOrThrow({
+    where: { id: productRequestId },
+  });
+
+  await prisma.$transaction(async (tx) => {
+    if (toRemove.length) {
+      await tx.productRequest.deleteMany({
+        where: { id: { in: toRemove.map((r) => r.id) } },
+      });
+    }
+
+    for (const orgId of toAdd) {
+      await tx.productRequest.create({
+        data: {
+          orgId,
+          ask: template.ask,
+          consolidationId,
+          csOwner: template.csOwner,
+          priority: template.priority,
+          status: template.status,
+          productNotes: template.productNotes,
+          timeline: template.timeline,
+          csNotes: template.csNotes,
+        },
+      });
+    }
+  });
+
+  const stillHere = await prisma.productRequest.findUnique({
+    where: { id: productRequestId },
+    include: productRequestInclude,
+  });
+  if (stillHere) return stillHere;
+
+  return prisma.productRequest.findFirstOrThrow({
+    where: { consolidationId },
+    include: productRequestInclude,
+    orderBy: { updatedAt: "desc" },
   });
 }
 

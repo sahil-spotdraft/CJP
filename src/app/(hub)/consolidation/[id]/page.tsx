@@ -51,7 +51,7 @@ export default async function ConsolidationDetailPage({
           ) : (
             <p className="text-sm text-[var(--ink-muted)]">Not yet linked to a canonical feature request.</p>
           )}
-          {!detail.featureRequest ? <PromoteToFeatureRequestButton consolidationId={detail.id} /> : null}
+          {!detail.featureRequest ? <PromoteToFeatureRequestButton /> : null}
         </div>
       </div>
 

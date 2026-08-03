@@ -20,6 +20,8 @@ const statusEnum = z.enum([
 
 const patchSchema = z.object({
   ask: z.string().min(1).optional(),
+  orgId: z.string().min(1).optional(),
+  consolidationId: z.string().nullable().optional(),
   csOwner: z.string().nullable().optional(),
   priority: priorityEnum.nullable().optional(),
   status: statusEnum.optional(),
@@ -27,6 +29,7 @@ const patchSchema = z.object({
   timeline: z.string().nullable().optional(),
   csNotes: z.string().nullable().optional(),
   featureRequestId: z.string().nullable().optional(),
+  workspaceIds: z.array(z.string().min(1)).min(1).optional(),
 });
 
 export async function GET(

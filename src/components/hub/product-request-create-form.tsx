@@ -12,8 +12,9 @@ const priorities = Object.values(ClmPriority);
 
 export function ProductRequestCreateForm({
   orgs,
+  csOwners = [],
   redirectTo,
-}: Readonly<{ orgs: Org[]; redirectTo?: string }>) {
+}: Readonly<{ orgs: Org[]; csOwners?: string[]; redirectTo?: string }>) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -72,7 +73,18 @@ export function ProductRequestCreateForm({
       </div>
       <div>
         <Label htmlFor="csOwner">CS Owner</Label>
-        <Input id="csOwner" name="csOwner" placeholder="Jamie Lee" />
+        <select
+          id="csOwner"
+          name="csOwner"
+          className="w-full rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm"
+        >
+          <option value="">None</option>
+          {csOwners.map((owner) => (
+            <option key={owner} value={owner}>
+              {owner}
+            </option>
+          ))}
+        </select>
       </div>
       <div className="md:col-span-2">
         <Label htmlFor="ask">Request / Ask</Label>
