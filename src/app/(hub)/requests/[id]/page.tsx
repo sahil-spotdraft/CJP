@@ -26,12 +26,26 @@ export default async function RequestDetailPage({
           include: { org: true, channel: true },
           orderBy: { createdAt: "desc" },
         },
+        productRequests: { include: { org: true } },
+        consolidation: {
+          include: { requests: { include: { org: true } } },
+        },
       },
     }),
     prisma.roadmapItem.findMany({ orderBy: { title: "asc" } }),
   ]);
 
   if (!request || !session?.user?.id) notFound();
+
+  const workspaces = [
+    ...new Map(
+      [
+        ...request.signals.map((s) => s.org),
+        ...request.productRequests.map((p) => p.org),
+        ...(request.consolidation?.requests.map((r) => r.org) ?? []),
+      ].map((org) => [org.id, org]),
+    ).values(),
+  ];
 
   return (
     <RequestDetailClient
@@ -50,6 +64,7 @@ export default async function RequestDetailPage({
           ...s,
           createdAt: s.createdAt.toISOString(),
         })),
+        workspaces,
         roadmap: request.roadmap,
         currentUserId: session.user.id,
         roadmapOptions,

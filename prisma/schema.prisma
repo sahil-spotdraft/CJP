@@ -22,6 +22,13 @@ enum FeatureSignalStatus {
   DISMISSED
 }
 
+enum SuggestionTriageStatus {
+  PENDING
+  MATCHED
+  CREATED
+  DISMISSED
+}
+
 enum ClassificationJobStatus {
   PENDING
   COMPLETED
@@ -69,6 +76,7 @@ model CustomerOrg {
   channels        SlackChannel[]
   signals         FeatureSignal[]
   productRequests ProductRequest[]
+  suggestionOrgs  SuggestionOrg[]
 }
 
 model SlackChannel {
@@ -101,9 +109,63 @@ model FeatureRequest {
   votes       Vote[]
   consolidation   Consolidation?
   productRequests ProductRequest[]
+  suggestionMatches SuggestionMatch[]
+  resolvedSuggestions Suggestion[]
 
   @@index([status])
   @@index([roadmapId])
+}
+
+// Demo "suggestion" from a Slack ask — same core fields as FeatureRequest,
+// plus source metadata and unread state for the home notification bell.
+model Suggestion {
+  id               String                 @id @default(cuid())
+  title            String
+  summary          String
+  status           FeatureRequestStatus   @default(NEW)
+  embedding        Json?
+  rawText          String?
+  sourceLabel      String                 @default("slack")
+  tags             String[]               @default([])
+  readAt           DateTime?
+  triageStatus     SuggestionTriageStatus @default(PENDING)
+  triageNote       String?
+  featureRequestId String?
+  featureRequest   FeatureRequest?        @relation(fields: [featureRequestId], references: [id], onDelete: SetNull)
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+  matches          SuggestionMatch[]
+  orgs             SuggestionOrg[]
+
+  @@index([createdAt])
+  @@index([readAt])
+  @@index([triageStatus])
+  @@index([featureRequestId])
+}
+
+// Workspaces (accounts) that raised this suggestion / should be added to the request.
+model SuggestionOrg {
+  suggestionId String
+  orgId        String
+  suggestion   Suggestion  @relation(fields: [suggestionId], references: [id], onDelete: Cascade)
+  org          CustomerOrg @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@id([suggestionId, orgId])
+  @@index([orgId])
+}
+
+model SuggestionMatch {
+  id               String         @id @default(cuid())
+  suggestionId     String
+  suggestion       Suggestion     @relation(fields: [suggestionId], references: [id], onDelete: Cascade)
+  featureRequestId String
+  featureRequest   FeatureRequest @relation(fields: [featureRequestId], references: [id], onDelete: Cascade)
+  matchPercent     Int
+  createdAt        DateTime       @default(now())
+
+  @@unique([suggestionId, featureRequestId])
+  @@index([suggestionId])
+  @@index([featureRequestId])
 }
 
 model FeatureSignal {

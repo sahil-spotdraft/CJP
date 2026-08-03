@@ -11,6 +11,10 @@ export default async function RequestsPage() {
       tags: { include: { tag: true } },
       votes: true,
       signals: { include: { org: true } },
+      productRequests: { include: { org: true } },
+      consolidation: {
+        include: { requests: { include: { org: true } } },
+      },
     },
     orderBy: { updatedAt: "desc" },
   });
@@ -26,7 +30,15 @@ export default async function RequestsPage() {
 
       <div className="space-y-3">
         {requests.map((request) => {
-          const orgs = [...new Map(request.signals.map((s) => [s.org.id, s.org])).values()];
+          const orgs = [
+            ...new Map(
+              [
+                ...request.signals.map((s) => s.org),
+                ...request.productRequests.map((p) => p.org),
+                ...(request.consolidation?.requests.map((r) => r.org) ?? []),
+              ].map((org) => [org.id, org]),
+            ).values(),
+          ];
           return (
             <Link
               key={request.id}
@@ -44,7 +56,7 @@ export default async function RequestsPage() {
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
                 <Badge>{request.votes.length} votes</Badge>
-                <Badge>{request.signals.length} signals</Badge>
+                <Badge>{orgs.length} workspaces</Badge>
                 {orgs.map((org) => (
                   <Badge key={org.id}>{org.name}</Badge>
                 ))}

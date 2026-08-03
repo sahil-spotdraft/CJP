@@ -1,0 +1,215 @@
+{
+  "suggestions": [
+    {
+      "id": "ceracare-counterparty-id",
+      "title": "Include Counterparty ID in List Contracts API Response",
+      "summary": "Add Counterparty ID to GET /api/v2.1/public/contracts so customers can uniquely link contracts to counterparties without matching on name.",
+      "status": "NEW",
+      "sourceLabel": "slack",
+      "tags": ["api", "contracts", "counterparty"],
+      "workspaces": [{ "slug": "ceracare", "name": "Ceracare", "arr": 125000 }],
+      "slackMessage": "Ceracare: Include Counterparty ID in List Contracts API Response\n\nFeature Request:\nThe customer has requested that the List Contracts API (GET /api/v2.1/public/contracts) include the Counterparty ID in its response payload.\nCurrent Limitation:\n\nThe API currently returns the Counterparty Name but does not return the associated Counterparty ID.\nThis prevents customers from reliably establishing a relationship between a contract and its corresponding counterparty.\nAs a workaround, customers can call the Get Counterparties API, but this requires matching on counterparty name (or email), which is not a reliable approach.\nCustomer Concern:\n\nCounterparty names are not guaranteed to be unique, so joining records based on name can lead to incorrect mappings.\nThe contract response does not include a counterparty email either. The available email fields relate to the user who uploaded or created the contract, not the counterparty.\nBecause of this, there is currently no unique identifier available in the List Contracts API response to associate a contract with its counterparty.\nRequested Enhancement:\n Include the Counterparty ID (or equivalent unique counterparty identifier) in the response payload of the List Contracts API (GET /api/v2.1/public/contracts).\n\nCC: @pt @Anagh Padmanabhan @Deepti Shukla",
+      "linkedRequests": [
+        {
+          "id": "demo_fr_counterparty_fields",
+          "title": "Expose counterparty identifiers on contract APIs",
+          "summary": "Return stable counterparty IDs (not just names) wherever contracts are listed or fetched.",
+          "status": "TRIAGED",
+          "matchPercent": 94
+        },
+        {
+          "id": "demo_fr_contracts_api_enrichment",
+          "title": "Enrich List Contracts API response payload",
+          "summary": "Customers need additional relational fields on GET /api/v2.1/public/contracts for reliable downstream joins.",
+          "status": "PLANNED",
+          "matchPercent": 81
+        },
+        {
+          "id": "demo_fr_unique_party_keys",
+          "title": "Unique keys for parties across public APIs",
+          "summary": "Avoid name-based matching by consistently returning unique party/counterparty identifiers.",
+          "status": "NEW",
+          "matchPercent": 72
+        }
+      ]
+    },
+    {
+      "id": "csv-export-reports",
+      "title": "Export reports to CSV",
+      "summary": "Customers want to download analytics reports as CSV for offline analysis.",
+      "status": "NEW",
+      "sourceLabel": "slack",
+      "tags": ["reporting", "export"],
+      "workspaces": [{ "slug": "acme", "name": "Acme Corp" }],
+      "slackMessage": "Feature Request:\nWould be great if we could export our weekly reports to CSV. Right now we have to screenshot everything.\n\nCC: @pt",
+      "linkedRequests": [
+        {
+          "id": "seed_export_csv",
+          "title": "Export reports to CSV",
+          "summary": "Customers want to download analytics reports as CSV for offline analysis.",
+          "status": "TRIAGED",
+          "matchPercent": 96
+        }
+      ]
+    },
+    {
+      "id": "version-deletion",
+      "title": "Delete individual document versions",
+      "summary": "Allow deleting an individual document version instead of the whole history, including purge for storage limits.",
+      "status": "NEW",
+      "sourceLabel": "slack",
+      "tags": ["versioning", "documents"],
+      "workspaces": [
+        { "slug": "acme", "name": "Acme Corp" },
+        { "slug": "globex", "name": "Globex" }
+      ],
+      "slackMessage": "Feature Request:\nAllow deleting an individual document version instead of the whole history. We also need to purge outdated contract versions to stay under storage limits.\n\nCC: @pt",
+      "linkedRequests": [
+        {
+          "id": "fr_version_deletion",
+          "title": "Delete individual document versions",
+          "summary": "Allow deleting an individual document version instead of the whole history, including purge for storage limits.",
+          "status": "NEW",
+          "matchPercent": 97
+        },
+        {
+          "id": "fr_approvals_executed_upload",
+          "title": "Restrict upload of executed document copies",
+          "summary": "Control who can upload executed copies of documents — limit to Admins and Legal via an approval/permission gate.",
+          "status": "NEW",
+          "matchPercent": 58
+        }
+      ]
+    },
+    {
+      "id": "signature-block-email",
+      "title": "Email ID field in signature blocks",
+      "summary": "Ability to include email ID as a field in signature blocks on contracts.",
+      "status": "NEW",
+      "sourceLabel": "slack",
+      "tags": ["signature", "contracts"],
+      "workspaces": [
+        { "slug": "ocrolus", "name": "Ocrolus" },
+        { "slug": "twelve-labs", "name": "Twelve Labs" },
+        { "slug": "tennr", "name": "Tennr" }
+      ],
+      "slackMessage": "Feature Request:\nAbility to have email ID as a field in the signature blocks. Multiple accounts (Ocrolus, Twelve Labs, Tennr) have asked for this.\n\nCC: @pt",
+      "linkedRequests": [
+        {
+          "id": "fr_signature_fields",
+          "title": "Email ID field in signature blocks",
+          "summary": "Ability to include email ID as a field in signature blocks on contracts.",
+          "status": "NEW",
+          "matchPercent": 95
+        },
+        {
+          "id": "fr_sfdc_field_lock",
+          "title": "Lock or hide SFDC-mapped fields on contract create",
+          "summary": "Ability to lock or hide certain Salesforce-mapped fields when creating a contract.",
+          "status": "NEW",
+          "matchPercent": 61
+        }
+      ]
+    },
+    {
+      "id": "initiate-contracts-existing-page",
+      "title": "Initiate new contracts from Existing Contracts page",
+      "summary": "Allow generating SOWs from MSAs and starting new contracts from the Existing Contracts page instead of only from Home.",
+      "status": "NEW",
+      "sourceLabel": "slack",
+      "tags": ["contracts", "sow"],
+      "workspaces": [{ "slug": "versant", "name": "Versant" }],
+      "slackMessage": "Feature Request:\nNo capability to auto-generate SOWs from MSAs — we have to manually recreate terms for every project. Also can't initiate a new contract from the Existing Contracts page (only from Home).\n\nCC: @pt",
+      "linkedRequests": [
+        {
+          "id": "fr_initiating_contracts",
+          "title": "Initiate new contracts from Existing Contracts page",
+          "summary": "Allow generating SOWs from MSAs and starting new contracts from the Existing Contracts page instead of only from Home.",
+          "status": "NEW",
+          "matchPercent": 93
+        },
+        {
+          "id": "fr_legal_user_assignment",
+          "title": "Legal Owner / Reviewer user question type on intake",
+          "summary": "Support a User question type for Legal Owner and Legal Reviewer so assignees can be set on the intake / questionnaire form.",
+          "status": "NEW",
+          "matchPercent": 54
+        }
+      ]
+    },
+    {
+      "id": "sso-okta-enterprise",
+      "title": "Enterprise SSO with Okta",
+      "summary": "Customer wants Okta SSO so the whole legal team can access without separate credentials.",
+      "status": "NEW",
+      "sourceLabel": "slack",
+      "tags": ["sso", "enterprise", "security"],
+      "workspaces": [{ "slug": "globex", "name": "Globex" }],
+      "slackMessage": "Hey team — our security folks are blocking rollout until we have Okta SSO. Can product prioritize this?",
+      "linkedRequests": [
+        {
+          "id": "demo_fr_sso_okta",
+          "title": "SSO / Okta login for enterprise accounts",
+          "summary": "Enterprise customers want Okta SSO so their teams can sign in without separate Moonshot passwords.",
+          "status": "TRIAGED",
+          "matchPercent": 92
+        },
+        {
+          "id": "demo_fr_saml",
+          "title": "SAML-based identity provider support",
+          "summary": "Support SAML 2.0 so customers can connect any compliant identity provider.",
+          "status": "PLANNED",
+          "matchPercent": 81
+        },
+        {
+          "id": "demo_fr_scim",
+          "title": "SCIM user provisioning",
+          "summary": "Automatically provision and deprovision users from the customer IdP via SCIM.",
+          "status": "NEW",
+          "matchPercent": 67
+        }
+      ]
+    },
+    {
+      "id": "legal-user-assignment",
+      "title": "Legal Owner / Reviewer on intake form",
+      "summary": "Support a User question type for Legal Owner and Legal Reviewer on the intake questionnaire.",
+      "status": "NEW",
+      "sourceLabel": "slack",
+      "tags": ["access-control", "intake"],
+      "workspaces": [{ "slug": "versant", "name": "Versant" }],
+      "slackMessage": "Feature Request:\nRequirement to support a User question type for Legal Owner and Legal Reviewer so users can be assigned on the intake / questionnaire form itself.\n\nCC: @pt",
+      "linkedRequests": [
+        {
+          "id": "fr_legal_user_assignment",
+          "title": "Legal Owner / Reviewer user question type on intake",
+          "summary": "Support a User question type for Legal Owner and Legal Reviewer so assignees can be set on the intake / questionnaire form.",
+          "status": "NEW",
+          "matchPercent": 98
+        }
+      ]
+    },
+    {
+      "id": "dark-mode-ui",
+      "title": "Dark mode for the web app",
+      "summary": "Add a dark theme option for users who work late or prefer lower brightness.",
+      "status": "NEW",
+      "sourceLabel": "slack",
+      "tags": ["ui", "theme"],
+      "workspaces": [{ "slug": "tennr", "name": "Tennr" }],
+      "slackMessage": "Feature Request:\nAny plans for dark mode? Our legal ops team works late and the bright UI is rough on the eyes.",
+      "linkedRequests": []
+    },
+    {
+      "id": "webhook-retry-policy",
+      "title": "Configurable webhook retry policy",
+      "summary": "Let admins configure retry count and backoff for outbound webhook deliveries.",
+      "status": "NEW",
+      "sourceLabel": "slack",
+      "tags": ["webhooks", "integrations"],
+      "workspaces": [{ "slug": "ocrolus", "name": "Ocrolus" }],
+      "slackMessage": "Feature Request:\nWe need a configurable retry/backoff policy for webhooks. Failed deliveries disappear too quietly for our ops team.",
+      "linkedRequests": []
+    }
+  ]
+}

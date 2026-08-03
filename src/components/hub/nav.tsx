@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { NotificationBell } from "@/components/hub/notification-bell";
 
 const links = [
   { href: "/", label: "Feature Requests" },
@@ -46,9 +47,12 @@ export function HubNav() {
             })}
           </nav>
         </div>
-        <Button variant="ghost" onClick={() => signOut({ callbackUrl: "/login" })}>
-          Sign out
-        </Button>
+        <div className="flex items-center gap-2">
+          <NotificationBell />
+          <Button variant="ghost" onClick={() => signOut({ callbackUrl: "/login" })}>
+            Sign out
+          </Button>
+        </div>
       </div>
     </header>
   );

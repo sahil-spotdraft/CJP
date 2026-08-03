@@ -31,6 +31,7 @@ type Detail = {
     org: { id: string; name: string };
     channel: { name: string };
   }[];
+  workspaces: { id: string; name: string }[];
   roadmap: { id: string; title: string; quarter: string | null } | null;
   currentUserId: string;
   roadmapOptions: { id: string; title: string; quarter: string | null }[];
@@ -46,7 +47,9 @@ export function RequestDetailClient({ detail }: { detail: Detail }) {
   const [busy, setBusy] = useState(false);
   const voted = detail.votes.some((v) => v.userId === detail.currentUserId);
 
-  const orgs = [...new Map(detail.signals.map((s) => [s.org.id, s.org])).values()];
+  const orgs = detail.workspaces.length
+    ? detail.workspaces
+    : [...new Map(detail.signals.map((s) => [s.org.id, s.org])).values()];
 
   async function saveMeta() {
     setBusy(true);
@@ -152,6 +155,16 @@ export function RequestDetailClient({ detail }: { detail: Detail }) {
           <h2 className="font-[family-name:var(--font-display)] text-2xl">
             Requested by workspaces
           </h2>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {orgs.map((org) => (
+              <Badge key={org.id} className="bg-[var(--accent-soft)] text-[var(--accent)]">
+                {org.name}
+              </Badge>
+            ))}
+            {orgs.length === 0 ? (
+              <p className="text-sm text-[var(--ink-muted)]">No workspaces linked yet.</p>
+            ) : null}
+          </div>
           <div className="mt-4 space-y-3">
             {detail.signals.map((signal) => (
               <div key={signal.id} className="rounded-xl border border-[var(--border)] p-4">
@@ -177,9 +190,6 @@ export function RequestDetailClient({ detail }: { detail: Detail }) {
                 ) : null}
               </div>
             ))}
-            {detail.signals.length === 0 ? (
-              <p className="text-sm text-[var(--ink-muted)]">No linked signals.</p>
-            ) : null}
           </div>
         </section>
 
