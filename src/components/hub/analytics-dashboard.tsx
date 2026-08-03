@@ -17,8 +17,15 @@ type AnalyticsData = {
     neu: number;
     neuPct: number;
   };
-  funnel: { status: string; count: number; uniqueArr: number; pct: number }[];
+  funnel: {
+    status: string;
+    count: number;
+    uniqueArr: number;
+    weightedArr: number;
+    pct: number;
+  }[];
   priorityMix: { priority: string; count: number }[];
+  statusPriority: Record<string, Record<string, number>>;
   gapBoard: {
     theme: string;
     accounts: number;
@@ -100,6 +107,10 @@ export function AnalyticsDashboard({ data }: Readonly<{ data: AnalyticsData }>) 
   }
 
   const maxFunnel = Math.max(...data.funnel.map((f) => f.count), 1);
+
+  if (lens === "global") {
+    return <OrganizationOverview data={data} setLens={setLens} />;
+  }
 
   return (
     <div className="space-y-8">
@@ -302,6 +313,290 @@ export function AnalyticsDashboard({ data }: Readonly<{ data: AnalyticsData }>) 
           />
         </Card>
       ) : null}
+    </div>
+  );
+}
+
+const statusColors: Record<string, string> = {
+  NEW: "bg-sky-500",
+  DISCUSSED_WITH_PRODUCT: "bg-amber-500",
+  IN_ROADMAP: "bg-indigo-500",
+  PLANNED: "bg-violet-500",
+  IN_PROGRESS: "bg-orange-500",
+  SHIPPED: "bg-emerald-500",
+  DECLINED: "bg-rose-500",
+};
+
+const priorityColors: Record<string, string> = {
+  CRITICAL: "bg-rose-500",
+  HIGH: "bg-orange-500",
+  LOW: "bg-emerald-500",
+  NOT_SET: "bg-zinc-400",
+};
+
+function readable(value: string) {
+  return value
+    .replaceAll("_", " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function OrganizationOverview({
+  data,
+  setLens,
+}: {
+  data: AnalyticsData;
+  setLens: (lens: string) => void;
+}) {
+  const maxStatus = Math.max(...data.funnel.map((row) => row.count), 1);
+  const maxPriority = Math.max(...data.priorityMix.map((row) => row.count), 1);
+  const priorities = data.priorityMix.filter((row) => row.count > 0);
+
+  return (
+    <div className="space-y-8">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-[0.16em] text-[var(--accent)]">
+            Organization overview
+          </p>
+          <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl">
+            Product request health
+          </h1>
+          <p className="mt-2 max-w-3xl text-[var(--ink-muted)]">
+            A simple view of where requests stand and which priorities are waiting
+            at each stage. Source: the current Product Requests list.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            className="rounded-lg bg-[var(--accent-soft)] px-3 py-1.5 text-sm font-medium text-[var(--accent)]"
+          >
+            Organization
+          </button>
+          <button
+            type="button"
+            onClick={() => setLens("csm")}
+            className="rounded-lg bg-[var(--surface)] px-3 py-1.5 text-sm text-[var(--ink-muted)] ring-1 ring-[var(--border)]"
+          >
+            CSM
+          </button>
+          <button
+            type="button"
+            onClick={() => setLens("pm")}
+            className="rounded-lg bg-[var(--surface)] px-3 py-1.5 text-sm text-[var(--ink-muted)] ring-1 ring-[var(--border)]"
+          >
+            PM
+          </button>
+        </div>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <Stat
+          label="Total requests"
+          value={String(data.totals.requests)}
+          hint={`Across ${data.totals.accounts} accounts`}
+        />
+        <Stat
+          label="New / awaiting triage"
+          value={String(data.totals.neu)}
+          hint={`${Math.round(data.totals.neuPct)}% of all requests`}
+          warn
+        />
+        <Stat
+          label="Critical requests"
+          value={String(data.totals.critical)}
+          hint="Require the earliest review"
+          warn
+        />
+        <Stat
+          label="ARR represented"
+          value={money(data.totals.requestWeightedArr)}
+          hint="Request-weighted; accounts may repeat"
+        />
+      </div>
+
+      <section>
+        <div className="mb-4">
+          <h2 className="font-[family-name:var(--font-display)] text-2xl">
+            1. Status summary
+          </h2>
+          <p className="mt-1 text-sm text-[var(--ink-muted)]">
+            Request count, share of total requests, and ARR represented at every status.
+          </p>
+        </div>
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+          <div className="space-y-5">
+            {data.funnel.map((row) => (
+              <div key={row.status} className="grid gap-2 md:grid-cols-[190px_1fr_210px] md:items-center">
+                <div>
+                  <p className="text-sm font-medium">{readable(row.status)}</p>
+                  <p className="text-xs text-[var(--ink-muted)]">
+                    {row.count} request{row.count === 1 ? "" : "s"}
+                  </p>
+                </div>
+                <div className="h-5 overflow-hidden rounded bg-[var(--surface-2)]">
+                  <div
+                    className={`h-full rounded ${statusColors[row.status] ?? "bg-zinc-500"}`}
+                    style={{ width: `${Math.max((row.count / maxStatus) * 100, 2)}%` }}
+                  />
+                </div>
+                <div className="flex justify-between gap-4 text-sm md:justify-end">
+                  <span className="font-semibold">{row.pct.toFixed(1)}%</span>
+                  <span className="min-w-[90px] text-right text-[var(--ink-muted)]">
+                    {money(row.weightedArr)} ARR
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="mt-5 border-t border-[var(--border)] pt-3 text-xs text-[var(--ink-muted)]">
+            ARR here follows the supplied status summary: an account is counted once
+            for every request row it has in that status.
+          </p>
+        </div>
+      </section>
+
+      <section>
+        <div className="mb-4">
+          <h2 className="font-[family-name:var(--font-display)] text-2xl">
+            2. Requests by priority
+          </h2>
+          <p className="mt-1 text-sm text-[var(--ink-muted)]">
+            The organization&apos;s complete priority mix, shown as counts and percentages.
+          </p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {data.priorityMix.map((row) => {
+            const pct = data.totals.requests
+              ? (row.count / data.totals.requests) * 100
+              : 0;
+            return (
+              <div
+                key={row.priority}
+                className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5"
+              >
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`h-2.5 w-2.5 rounded-full ${
+                      priorityColors[row.priority] ?? "bg-zinc-400"
+                    }`}
+                  />
+                  <p className="text-sm font-medium">{readable(row.priority)}</p>
+                </div>
+                <p className="mt-3 text-3xl font-semibold">{row.count}</p>
+                <p className="text-sm text-[var(--ink-muted)]">{pct.toFixed(1)}% of requests</p>
+                <div className="mt-4 h-2 overflow-hidden rounded-full bg-[var(--surface-2)]">
+                  <div
+                    className={`h-full rounded-full ${
+                      priorityColors[row.priority] ?? "bg-zinc-400"
+                    }`}
+                    style={{ width: `${(row.count / maxPriority) * 100}%` }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      <section>
+        <div className="mb-4">
+          <h2 className="font-[family-name:var(--font-display)] text-2xl">
+            3. Status × priority
+          </h2>
+          <p className="mt-1 text-sm text-[var(--ink-muted)]">
+            Read each row left to right to see which priorities are sitting at that status.
+          </p>
+        </div>
+        <div className="overflow-x-auto rounded-2xl border border-[var(--border)] bg-[var(--surface)]">
+          <table className="w-full min-w-[720px] text-left text-sm">
+            <thead>
+              <tr className="border-b border-[var(--border)] bg-[var(--surface-2)]">
+                <th className="px-4 py-3 font-medium">Status</th>
+                {priorities.map((priority) => (
+                  <th key={priority.priority} className="px-4 py-3 text-center font-medium">
+                    <span className="inline-flex items-center gap-2">
+                      <span
+                        className={`h-2 w-2 rounded-full ${
+                          priorityColors[priority.priority] ?? "bg-zinc-400"
+                        }`}
+                      />
+                      {readable(priority.priority)}
+                    </span>
+                  </th>
+                ))}
+                <th className="px-4 py-3 text-center font-medium">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.funnel.map((status) => (
+                <tr key={status.status} className="border-b border-[var(--border)] last:border-0">
+                  <td className="px-4 py-3 font-medium">{readable(status.status)}</td>
+                  {priorities.map((priority) => {
+                    const value =
+                      data.statusPriority[status.status]?.[priority.priority] ?? 0;
+                    return (
+                      <td key={priority.priority} className="px-4 py-3 text-center">
+                        <span
+                          className={
+                            value
+                              ? "inline-flex min-w-8 justify-center rounded-md bg-[var(--surface-2)] px-2 py-1 font-semibold"
+                              : "text-[var(--ink-muted)]"
+                          }
+                        >
+                          {value}
+                        </span>
+                      </td>
+                    );
+                  })}
+                  <td className="px-4 py-3 text-center font-semibold">{status.count}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+        <h2 className="font-[family-name:var(--font-display)] text-xl">
+          What is a Consolidation category?
+        </h2>
+        <p className="mt-2 max-w-4xl text-sm leading-6 text-[var(--ink-muted)]">
+          It is the value from the provided <strong className="text-[var(--ink)]">
+            Consolidation
+          </strong>{" "}
+          column. It groups requests that describe the same product capability. For
+          example, requests from several customers can all roll up to
+          “Customisable Notifications.” Earlier analytics called these “themes”; the
+          dashboard now uses the spreadsheet term to avoid ambiguity.
+        </p>
+      </section>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card title="Top consolidation categories">
+          <SimpleTable
+            headers={["Consolidation", "Accounts", "Unique ARR", "Roadmap"]}
+            rows={data.themeScores.slice(0, 8).map((row) => [
+              row.theme,
+              String(row.accounts),
+              money(row.uniqueArr),
+              row.inRoadmap ? "In Roadmap" : "Not in Roadmap",
+            ])}
+          />
+        </Card>
+        <Card title="Largest roadmap gaps">
+          <SimpleTable
+            headers={["Consolidation", "Accounts", "Unique ARR", "Critical"]}
+            rows={data.gapBoard.slice(0, 8).map((row) => [
+              row.theme,
+              String(row.accounts),
+              money(row.uniqueArr),
+              String(row.critical),
+            ])}
+          />
+        </Card>
+      </div>
     </div>
   );
 }

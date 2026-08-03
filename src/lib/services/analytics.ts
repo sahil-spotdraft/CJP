@@ -30,6 +30,7 @@ export async function getAnalytics(lens: AnalyticsLens = "global", csOwner?: str
     { count: number; weightedArr: number; orgs: Map<string, number> }
   >();
   const byPriority = new Map<string, number>();
+  const statusPriority: Record<string, Record<string, number>> = {};
   const themeMap = new Map<
     string,
     {
@@ -68,6 +69,9 @@ export async function getAnalytics(lens: AnalyticsLens = "global", csOwner?: str
     byStatus.set(status, statusBucket);
 
     byPriority.set(priority, (byPriority.get(priority) ?? 0) + 1);
+    statusPriority[status] ??= {};
+    statusPriority[status][priority] =
+      (statusPriority[status][priority] ?? 0) + 1;
 
     const themeName = r.consolidation?.name ?? "(Unconsolidated)";
     const theme = themeMap.get(themeName) ?? {
@@ -214,8 +218,10 @@ export async function getAnalytics(lens: AnalyticsLens = "global", csOwner?: str
 
   const statusOrder: ClmRequestStatus[] = [
     ClmRequestStatus.NEW,
+    ClmRequestStatus.SHARED_WITH_PRODUCT,
     ClmRequestStatus.DISCUSSED_WITH_PRODUCT,
     ClmRequestStatus.IN_ROADMAP,
+    ClmRequestStatus.CLOSED,
     ClmRequestStatus.PLANNED,
     ClmRequestStatus.IN_PROGRESS,
     ClmRequestStatus.SHIPPED,
@@ -236,7 +242,7 @@ export async function getAnalytics(lens: AnalyticsLens = "global", csOwner?: str
     ];
   });
 
-  const priorityMix = ["CRITICAL", "HIGH", "LOW", "NOT_SET"].map((p) => ({
+  const priorityMix = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "NOT_SET"].map((p) => ({
     priority: p,
     count: byPriority.get(p) ?? 0,
   }));
@@ -281,6 +287,7 @@ export async function getAnalytics(lens: AnalyticsLens = "global", csOwner?: str
     },
     funnel,
     priorityMix,
+    statusPriority,
     roadmapThemes,
     gapBoard,
     themeScores,

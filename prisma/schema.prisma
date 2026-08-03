@@ -32,13 +32,16 @@ enum ClassificationJobStatus {
 enum ClmPriority {
   CRITICAL
   HIGH
+  MEDIUM
   LOW
 }
 
 enum ClmRequestStatus {
   NEW
   DISCUSSED_WITH_PRODUCT
+  SHARED_WITH_PRODUCT
   IN_ROADMAP
+  CLOSED
   PLANNED
   IN_PROGRESS
   SHIPPED

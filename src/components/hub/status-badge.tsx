@@ -35,7 +35,9 @@ export function SignalStatusBadge({ status }: { status: FeatureSignalStatus }) {
 const clmStatusColors: Record<ClmRequestStatus, string> = {
   NEW: "bg-sky-100 text-sky-800",
   DISCUSSED_WITH_PRODUCT: "bg-yellow-100 text-yellow-900",
+  SHARED_WITH_PRODUCT: "bg-violet-100 text-violet-900",
   IN_ROADMAP: "bg-indigo-100 text-indigo-800",
+  CLOSED: "bg-zinc-100 text-zinc-700",
   PLANNED: "bg-amber-100 text-amber-900",
   IN_PROGRESS: "bg-orange-100 text-orange-900",
   SHIPPED: "bg-emerald-100 text-emerald-800",
@@ -45,12 +47,14 @@ const clmStatusColors: Record<ClmRequestStatus, string> = {
 const clmPriorityColors: Record<ClmPriority, string> = {
   CRITICAL: "bg-rose-100 text-rose-800",
   HIGH: "bg-orange-100 text-orange-900",
+  MEDIUM: "bg-amber-100 text-amber-900",
   LOW: "bg-emerald-100 text-emerald-800",
 };
 
 const clmPriorityDot: Record<ClmPriority, string> = {
   CRITICAL: "bg-rose-500",
   HIGH: "bg-orange-400",
+  MEDIUM: "bg-amber-400",
   LOW: "bg-emerald-500",
 };
 
