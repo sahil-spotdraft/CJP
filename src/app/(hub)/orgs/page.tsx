@@ -37,6 +37,7 @@ export default async function OrgsPage() {
             <div className="mt-3 flex flex-wrap gap-2">
               <Badge>{org.channels.length} channels</Badge>
               <Badge>{org._count.signals} signals</Badge>
+              <Badge>ARR: {org.arr != null ? `$${org.arr.toLocaleString()}` : "—"}</Badge>
             </div>
           </Link>
         ))}

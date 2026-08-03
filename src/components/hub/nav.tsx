@@ -7,12 +7,10 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 const links = [
-  { href: "/", label: "Inbox" },
-  { href: "/requests", label: "Requests" },
+  { href: "/", label: "Home" },
+  { href: "/product-requests", label: "Feature Requests" },
+  { href: "/consolidation", label: "Consolidation" },
   { href: "/orgs", label: "Orgs" },
-  { href: "/roadmap", label: "Roadmap" },
-  { href: "/tags", label: "Tags" },
-  { href: "/settings", label: "Settings" },
 ];
 
 export function HubNav() {

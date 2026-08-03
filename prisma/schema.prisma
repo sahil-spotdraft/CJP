@@ -29,6 +29,22 @@ enum ClassificationJobStatus {
   SKIPPED
 }
 
+enum ClmPriority {
+  CRITICAL
+  HIGH
+  LOW
+}
+
+enum ClmRequestStatus {
+  NEW
+  DISCUSSED_WITH_PRODUCT
+  IN_ROADMAP
+  PLANNED
+  IN_PROGRESS
+  SHIPPED
+  DECLINED
+}
+
 model User {
   id           String               @id @default(cuid())
   email        String               @unique
@@ -41,13 +57,15 @@ model User {
 }
 
 model CustomerOrg {
-  id        String         @id @default(cuid())
-  name      String
-  slug      String         @unique
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
-  channels  SlackChannel[]
-  signals   FeatureSignal[]
+  id              String           @id @default(cuid())
+  name            String
+  slug            String           @unique
+  arr             Float?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  channels        SlackChannel[]
+  signals         FeatureSignal[]
+  productRequests ProductRequest[]
 }
 
 model SlackChannel {
@@ -78,6 +96,8 @@ model FeatureRequest {
   notes       FeatureRequestNote[]
   tags        FeatureRequestTag[]
   votes       Vote[]
+  consolidation   Consolidation?
+  productRequests ProductRequest[]
 
   @@index([status])
   @@index([roadmapId])
@@ -182,4 +202,46 @@ model AppSetting {
   confidenceThreshold Float @default(0.7)
   threadReplyEnabled  Boolean @default(true)
   updatedAt DateTime @updatedAt
+}
+
+// Canonical grouping bucket that multiple CLM product requests roll up into.
+// ARR shown for a consolidation is derived (not stored) from the ARR of every
+// distinct workspace among its linked ProductRequest rows, so it grows as more
+// workspaces ask for the same feature.
+model Consolidation {
+  id               String           @id @default(cuid())
+  name             String           @unique
+  feature          String?
+  featureRequestId String?          @unique
+  featureRequest   FeatureRequest?  @relation(fields: [featureRequestId], references: [id], onDelete: SetNull)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  requests         ProductRequest[]
+}
+
+// One row of the "Product Requests CLM" sheet: Account, Account ARR (via org),
+// Request/Ask, Consolidation, CS Owner, Priority, Status, Product Notes,
+// Timeline, CS Notes.
+model ProductRequest {
+  id               String            @id @default(cuid())
+  orgId            String
+  org              CustomerOrg       @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  ask              String
+  consolidationId  String?
+  consolidation    Consolidation?    @relation(fields: [consolidationId], references: [id], onDelete: SetNull)
+  featureRequestId String?
+  featureRequest   FeatureRequest?   @relation(fields: [featureRequestId], references: [id], onDelete: SetNull)
+  csOwner          String?
+  priority         ClmPriority?
+  status           ClmRequestStatus  @default(NEW)
+  productNotes     String?
+  timeline         String?
+  csNotes          String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@index([orgId])
+  @@index([consolidationId])
+  @@index([featureRequestId])
+  @@index([status])
 }

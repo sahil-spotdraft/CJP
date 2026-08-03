@@ -1,7 +1,69 @@
-import { PrismaClient, FeatureRequestStatus, FeatureSignalStatus } from "@prisma/client";
+import {
+  PrismaClient,
+  FeatureRequestStatus,
+  FeatureSignalStatus,
+  ClmPriority,
+  ClmRequestStatus,
+} from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
+
+async function upsertOrg(params: { slug: string; name: string; arr: number }) {
+  return prisma.customerOrg.upsert({
+    where: { slug: params.slug },
+    update: { name: params.name, arr: params.arr },
+    create: { name: params.name, slug: params.slug, arr: params.arr },
+  });
+}
+
+async function upsertConsolidation(name: string, feature?: string) {
+  return prisma.consolidation.upsert({
+    where: { name },
+    update: { feature: feature ?? undefined },
+    create: { name, feature: feature ?? undefined },
+  });
+}
+
+async function upsertProductRequest(params: {
+  id: string;
+  orgId: string;
+  ask: string;
+  consolidationId: string;
+  csOwner: string;
+  priority: ClmPriority;
+  status: ClmRequestStatus;
+  productNotes?: string;
+  timeline?: string;
+  csNotes?: string;
+}) {
+  return prisma.productRequest.upsert({
+    where: { id: params.id },
+    update: {
+      orgId: params.orgId,
+      ask: params.ask,
+      consolidationId: params.consolidationId,
+      csOwner: params.csOwner,
+      priority: params.priority,
+      status: params.status,
+      productNotes: params.productNotes ?? null,
+      timeline: params.timeline ?? null,
+      csNotes: params.csNotes ?? null,
+    },
+    create: {
+      id: params.id,
+      orgId: params.orgId,
+      ask: params.ask,
+      consolidationId: params.consolidationId,
+      csOwner: params.csOwner,
+      priority: params.priority,
+      status: params.status,
+      productNotes: params.productNotes,
+      timeline: params.timeline,
+      csNotes: params.csNotes,
+    },
+  });
+}
 
 async function main() {
   const email = (process.env.ADMIN_EMAIL || "admin@moonshot.local").toLowerCase();
@@ -26,17 +88,15 @@ async function main() {
     },
   });
 
-  const acme = await prisma.customerOrg.upsert({
-    where: { slug: "acme" },
-    update: {},
-    create: { name: "Acme Corp", slug: "acme" },
-  });
+  // Keep existing demo orgs for Slack inbox flow
+  const acme = await upsertOrg({ slug: "acme", name: "Acme Corp", arr: 345800 });
+  const globex = await upsertOrg({ slug: "globex", name: "Globex", arr: 237750 });
 
-  const globex = await prisma.customerOrg.upsert({
-    where: { slug: "globex" },
-    update: {},
-    create: { name: "Globex", slug: "globex" },
-  });
+  // Accounts from the Product Requests CLM sheet screenshot
+  const versant = await upsertOrg({ slug: "versant", name: "Versant", arr: 166688 });
+  const ocrolus = await upsertOrg({ slug: "ocrolus", name: "Ocrolus", arr: 72250 });
+  const twelveLabs = await upsertOrg({ slug: "twelve-labs", name: "Twelve Labs", arr: 35150 });
+  const tennr = await upsertOrg({ slug: "tennr", name: "Tennr", arr: 29600 });
 
   const acmeChannel = await prisma.slackChannel.upsert({
     where: { channelId: "C_ACME_SUPPORT" },
@@ -144,6 +204,114 @@ async function main() {
       authorId: admin.id,
       body: "Multiple enterprise accounts asked for this during Q2 QBRs.",
     },
+  });
+
+  const consolidations = {
+    initiatingContracts: await upsertConsolidation(
+      "Initiating New Contracts from existing page",
+      "Contracts",
+    ),
+    legalUserAssignment: await upsertConsolidation("Legal User assignment", "Access control"),
+    sfdcFieldLock: await upsertConsolidation("SFDC Field-Level Lock/Hide Controls", "Salesforce"),
+    signatureFields: await upsertConsolidation("Additional Fields - Signature blocks", "Signature"),
+    approvals: await upsertConsolidation("Approvals", "Approvals"),
+    versionDeletion: await upsertConsolidation("Version Deletion", "Document versioning"),
+  };
+
+  await upsertProductRequest({
+    id: "seed_pr_versant_initiating_contracts",
+    orgId: versant.id,
+    ask: "No capability to auto-generate SOWs from MSAs, requiring manual recreation of terms for every project which is inefficient and error-prone. Currently you have to initiate contract from Home and can't initiate new contract from Existing Contracts page.",
+    consolidationId: consolidations.initiatingContracts.id,
+    csOwner: "Shubham",
+    priority: ClmPriority.CRITICAL,
+    status: ClmRequestStatus.DISCUSSED_WITH_PRODUCT,
+  });
+
+  await upsertProductRequest({
+    id: "seed_pr_versant_legal_user_assignment",
+    orgId: versant.id,
+    ask: "Requirement to support a User question type for Legal Owner and Legal Reviewer so users can be assigned on the intake / questionnaire form itself.",
+    consolidationId: consolidations.legalUserAssignment.id,
+    csOwner: "Shubham",
+    priority: ClmPriority.CRITICAL,
+    status: ClmRequestStatus.DISCUSSED_WITH_PRODUCT,
+  });
+
+  await upsertProductRequest({
+    id: "seed_pr_ocrolus_sfdc_field_lock",
+    orgId: ocrolus.id,
+    ask: "Ability to lock certain SFDC mapped fields when creating a contract",
+    consolidationId: consolidations.sfdcFieldLock.id,
+    csOwner: "Pooja",
+    priority: ClmPriority.CRITICAL,
+    status: ClmRequestStatus.IN_ROADMAP,
+  });
+
+  await upsertProductRequest({
+    id: "seed_pr_ocrolus_signature_email",
+    orgId: ocrolus.id,
+    ask: "Ability to have email ID as a field in the signature blocks",
+    consolidationId: consolidations.signatureFields.id,
+    csOwner: "Pooja",
+    priority: ClmPriority.LOW,
+    status: ClmRequestStatus.NEW,
+  });
+
+  await upsertProductRequest({
+    id: "seed_pr_twelve_labs_signature_email",
+    orgId: twelveLabs.id,
+    ask: "Ability to have email ID as a field in the signature blocks",
+    consolidationId: consolidations.signatureFields.id,
+    csOwner: "Vanshika",
+    priority: ClmPriority.HIGH,
+    status: ClmRequestStatus.NEW,
+  });
+
+  await upsertProductRequest({
+    id: "seed_pr_tennr_signature_email",
+    orgId: tennr.id,
+    ask: "Ability to have email ID as a field in the signature blocks",
+    consolidationId: consolidations.signatureFields.id,
+    csOwner: "Vanshika",
+    priority: ClmPriority.HIGH,
+    status: ClmRequestStatus.NEW,
+  });
+
+  await upsertProductRequest({
+    id: "seed_pr_ocrolus_approvals",
+    orgId: ocrolus.id,
+    ask: "Is there a way to turn off the feature where users can upload executed copies of documents? Customers want only Admins and Legal to have this ability.",
+    consolidationId: consolidations.approvals.id,
+    csOwner: "Pooja",
+    priority: ClmPriority.LOW,
+    status: ClmRequestStatus.DISCUSSED_WITH_PRODUCT,
+    productNotes: "this should be approval needed",
+  });
+
+  await upsertProductRequest({
+    id: "seed_pr_acme_version_deletion",
+    orgId: acme.id,
+    ask: "Allow deleting an individual document version instead of the whole history.",
+    consolidationId: consolidations.versionDeletion.id,
+    csOwner: "Jamie Lee",
+    priority: ClmPriority.HIGH,
+    status: ClmRequestStatus.DISCUSSED_WITH_PRODUCT,
+    productNotes: "Scoped for the versioning revamp; needs audit-log follow-up.",
+    timeline: "2026-Q4",
+    csNotes: "Blocking a compliance workflow for this account.",
+  });
+
+  await upsertProductRequest({
+    id: "seed_pr_globex_version_deletion",
+    orgId: globex.id,
+    ask: "Need to purge outdated contract versions to stay under storage limits.",
+    consolidationId: consolidations.versionDeletion.id,
+    csOwner: "Priya Nair",
+    priority: ClmPriority.HIGH,
+    status: ClmRequestStatus.NEW,
+    timeline: "2026-Q4",
+    csNotes: "Came up during QBR renewal discussion.",
   });
 
   console.log(`Seed complete. Admin login: ${email} / ${password}`);

@@ -12,6 +12,8 @@ export const config = {
     "/inbox/:path*",
     "/triage/:path*",
     "/requests/:path*",
+    "/product-requests/:path*",
+    "/consolidation/:path*",
     "/orgs/:path*",
     "/roadmap/:path*",
     "/tags/:path*",

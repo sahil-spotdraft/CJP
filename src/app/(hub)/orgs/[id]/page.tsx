@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { Badge } from "@/components/ui/badge";
 import { ChannelCreateForm } from "@/components/hub/channel-create-form";
+import { OrgArrEditor } from "@/components/hub/org-arr-editor";
 import { RequestStatusBadge, SignalStatusBadge } from "@/components/hub/status-badge";
 
 export const dynamic = "force-dynamic";
@@ -31,8 +32,20 @@ export default async function OrgDetailPage({
     <div className="space-y-6">
       <div>
         <h1 className="font-[family-name:var(--font-display)] text-3xl">{org.name}</h1>
-        <p className="mt-1 text-[var(--ink-muted)]">Workspace slug: {org.slug}</p>
+        <p className="mt-1 text-[var(--ink-muted)]">
+          Workspace slug: {org.slug} · WS ID: <span className="font-mono">{org.id}</span>
+        </p>
       </div>
+
+      <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6">
+        <h2 className="text-xl font-semibold">Account ARR</h2>
+        <p className="mt-1 text-sm text-[var(--ink-muted)]">
+          Drives the ARR rollup shown on the Consolidation view for every feature this workspace asks for.
+        </p>
+        <div className="mt-4">
+          <OrgArrEditor orgId={org.id} initialArr={org.arr} />
+        </div>
+      </section>
 
       <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6">
         <h2 className="text-xl font-semibold">Slack channels</h2>

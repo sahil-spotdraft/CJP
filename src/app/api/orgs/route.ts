@@ -22,6 +22,7 @@ export async function GET() {
 const createSchema = z.object({
   name: z.string().min(1),
   slug: z.string().optional(),
+  arr: z.number().nonnegative().optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -33,7 +34,7 @@ export async function POST(req: NextRequest) {
 
   const slug = body.data.slug?.trim() || slugify(body.data.name);
   const org = await prisma.customerOrg.create({
-    data: { name: body.data.name.trim(), slug },
+    data: { name: body.data.name.trim(), slug, arr: body.data.arr },
   });
 
   return NextResponse.json(org, { status: 201 });
