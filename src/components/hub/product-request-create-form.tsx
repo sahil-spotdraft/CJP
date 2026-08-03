@@ -5,22 +5,43 @@ import { useRouter } from "next/navigation";
 import { ClmPriority } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Textarea } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
+import { formatCsOwnerLabel } from "@/lib/cs-owner-label";
 
 type Org = { id: string; name: string };
+type Consolidation = { id: string; name: string; notes?: string | null };
+type CsOwner = { id: string; name: string; email: string };
 
 const priorities = Object.values(ClmPriority);
 
 export function ProductRequestCreateForm({
   orgs,
+  consolidations = [],
   csOwners = [],
   redirectTo,
-}: Readonly<{ orgs: Org[]; csOwners?: string[]; redirectTo?: string }>) {
+}: Readonly<{
+  orgs: Org[];
+  consolidations?: Consolidation[];
+  csOwners?: CsOwner[];
+  redirectTo?: string;
+}>) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [workspaceIds, setWorkspaceIds] = useState<string[]>([]);
+
+  function toggleWorkspace(orgId: string) {
+    setWorkspaceIds((prev) =>
+      prev.includes(orgId) ? prev.filter((id) => id !== orgId) : [...prev, orgId],
+    );
+  }
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (workspaceIds.length === 0) {
+      setError("Select at least one workspace");
+      return;
+    }
     setLoading(true);
     setError(null);
     const form = new FormData(e.currentTarget);
@@ -28,9 +49,10 @@ export function ProductRequestCreateForm({
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        orgId: form.get("orgId"),
+        workspaceIds,
         ask: form.get("ask"),
-        csOwner: form.get("csOwner") || undefined,
+        consolidationId: form.get("consolidationId"),
+        csOwnerId: form.get("csOwnerId"),
         priority: form.get("priority") || undefined,
         timeline: form.get("timeline") || undefined,
         productNotes: form.get("productNotes") || undefined,
@@ -47,6 +69,7 @@ export function ProductRequestCreateForm({
       router.push(redirectTo);
     } else {
       (e.target as HTMLFormElement).reset();
+      setWorkspaceIds([]);
     }
     router.refresh();
   }
@@ -56,39 +79,88 @@ export function ProductRequestCreateForm({
       onSubmit={onSubmit}
       className="grid gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 md:grid-cols-2"
     >
-      <div>
-        <Label htmlFor="orgId">WS Name</Label>
+      <div className="md:col-span-2">
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <Label>Workspaces (WS Name)</Label>
+          <span className="text-xs text-[var(--ink-muted)]">
+            {workspaceIds.length} selected · at least one required
+          </span>
+        </div>
+        <div className="grid max-h-56 gap-2 overflow-y-auto rounded-xl border border-[var(--border)] bg-white p-3 sm:grid-cols-2">
+          {orgs.map((org) => {
+            const checked = workspaceIds.includes(org.id);
+            return (
+              <label
+                key={org.id}
+                className={cn(
+                  "flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm",
+                  checked
+                    ? "border-[var(--accent)] bg-[var(--accent-soft)]/50"
+                    : "border-[var(--border)] hover:bg-[var(--surface-2)]",
+                )}
+              >
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => toggleWorkspace(org.id)}
+                />
+                <span className="font-medium">{org.name}</span>
+              </label>
+            );
+          })}
+          {orgs.length === 0 ? (
+            <p className="col-span-full text-sm text-[var(--ink-muted)]">
+              No workspaces yet — add one on the Orgs page first.
+            </p>
+          ) : null}
+        </div>
+      </div>
+      <div className="md:col-span-2">
+        <Label htmlFor="csOwnerId">CS Owner</Label>
         <select
-          id="orgId"
-          name="orgId"
+          id="csOwnerId"
+          name="csOwnerId"
           required
           className="w-full rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm"
         >
-          {orgs.map((org) => (
-            <option key={org.id} value={org.id}>
-              {org.name}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div>
-        <Label htmlFor="csOwner">CS Owner</Label>
-        <select
-          id="csOwner"
-          name="csOwner"
-          className="w-full rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm"
-        >
-          <option value="">None</option>
+          <option value="">Select a CS owner…</option>
           {csOwners.map((owner) => (
-            <option key={owner} value={owner}>
-              {owner}
+            <option key={owner.id} value={owner.id}>
+              {formatCsOwnerLabel(owner)}
             </option>
           ))}
         </select>
+        {csOwners.length === 0 ? (
+          <p className="mt-1 text-xs text-[var(--ink-muted)]">
+            No CS owners yet — add one on the CS Owners page first.
+          </p>
+        ) : null}
       </div>
       <div className="md:col-span-2">
         <Label htmlFor="ask">Request / Ask</Label>
         <Textarea id="ask" name="ask" rows={2} required placeholder="What is the customer asking for?" />
+      </div>
+      <div className="md:col-span-2">
+        <Label htmlFor="consolidationId">Consolidation</Label>
+        <select
+          id="consolidationId"
+          name="consolidationId"
+          required
+          className="w-full rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm"
+        >
+          <option value="">Select a consolidation…</option>
+          {consolidations.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+              {c.notes ? ` — ${c.notes.slice(0, 60)}${c.notes.length > 60 ? "…" : ""}` : ""}
+            </option>
+          ))}
+        </select>
+        {consolidations.length === 0 ? (
+          <p className="mt-1 text-xs text-[var(--ink-muted)]">
+            No consolidations yet — add one on the Consolidation page first.
+          </p>
+        ) : null}
       </div>
       <div>
         <Label htmlFor="priority">Priority</Label>
@@ -121,7 +193,7 @@ export function ProductRequestCreateForm({
         <p className="md:col-span-2 text-sm text-[var(--danger)]">{error}</p>
       ) : null}
       <div className="md:col-span-2">
-        <Button type="submit" disabled={loading}>
+        <Button type="submit" disabled={loading || workspaceIds.length === 0}>
           {loading ? "Creating…" : "Create feature request"}
         </Button>
       </div>

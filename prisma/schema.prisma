@@ -273,10 +273,22 @@ model AppSetting {
 // ARR shown for a consolidation is derived (not stored) from the ARR of every
 // distinct workspace among its linked ProductRequest rows, so it grows as more
 // workspaces ask for the same feature.
+// CS owners are directory entries (name + email) assigned to product requests —
+// separate from login Users.
+model CsOwner {
+  id              String           @id @default(cuid())
+  name            String
+  email           String           @unique
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  productRequests ProductRequest[]
+}
+
 model Consolidation {
   id               String           @id @default(cuid())
   name             String           @unique
   feature          String?
+  notes            String?
   featureRequestId String?          @unique
   featureRequest   FeatureRequest?  @relation(fields: [featureRequestId], references: [id], onDelete: SetNull)
   createdAt        DateTime         @default(now())
@@ -296,7 +308,8 @@ model ProductRequest {
   consolidation    Consolidation?    @relation(fields: [consolidationId], references: [id], onDelete: SetNull)
   featureRequestId String?
   featureRequest   FeatureRequest?   @relation(fields: [featureRequestId], references: [id], onDelete: SetNull)
-  csOwner          String?
+  csOwnerId        String?
+  csOwner          CsOwner?          @relation(fields: [csOwnerId], references: [id], onDelete: SetNull)
   priority         ClmPriority?
   status           ClmRequestStatus  @default(NEW)
   productNotes     String?
@@ -308,5 +321,7 @@ model ProductRequest {
   @@index([orgId])
   @@index([consolidationId])
   @@index([featureRequestId])
+  @@index([csOwnerId])
   @@index([status])
+  @@unique([consolidationId, orgId])
 }

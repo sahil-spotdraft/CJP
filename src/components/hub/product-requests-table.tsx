@@ -15,7 +15,7 @@ type Consolidation = { id: string; name: string };
 type ProductRequest = {
   id: string;
   ask: string;
-  csOwner: string | null;
+  csOwner: { id: string; name: string; email: string } | null;
   priority: ClmPriority | null;
   status: ClmRequestStatus;
   productNotes: string | null;
@@ -164,7 +164,7 @@ function ProductRequestCard({
       <div className="mt-3 flex flex-wrap gap-2 text-xs">
         <Badge>WS Name: {request.org.name}</Badge>
         <Badge>Account ARR: {formatArr(request.org.arr)}</Badge>
-        {request.csOwner ? <Badge>CS: {request.csOwner}</Badge> : null}
+        {request.csOwner ? <Badge>CS: {request.csOwner.name}</Badge> : null}
         {request.timeline ? <Badge>{request.timeline}</Badge> : null}
       </div>
 

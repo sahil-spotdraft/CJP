@@ -1,22 +1,16 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
+import { listCsOwners } from "@/lib/services/cs-owner";
 import { ProductRequestCreateForm } from "@/components/hub/product-request-create-form";
 
 export const dynamic = "force-dynamic";
 
 export default async function CreateFeatureRequestPage() {
-  const [orgs, ownerRows] = await Promise.all([
+  const [orgs, consolidations, csOwners] = await Promise.all([
     prisma.customerOrg.findMany({ orderBy: { name: "asc" } }),
-    prisma.productRequest.findMany({
-      where: { csOwner: { not: null } },
-      select: { csOwner: true },
-      distinct: ["csOwner"],
-      orderBy: { csOwner: "asc" },
-    }),
+    prisma.consolidation.findMany({ orderBy: { name: "asc" } }),
+    listCsOwners(),
   ]);
-  const csOwners = ownerRows
-    .map((r) => r.csOwner)
-    .filter((name): name is string => Boolean(name));
 
   return (
     <div className="space-y-6">
@@ -28,11 +22,20 @@ export default async function CreateFeatureRequestPage() {
           Create feature request
         </h1>
         <p className="mt-1 text-[var(--ink-muted)]">
-          Capture a CLM ask from a workspace. You can assign it to a consolidation afterward.
+          Capture a CLM ask from a workspace. Consolidation and CS owner are both required.
         </p>
       </div>
 
-      <ProductRequestCreateForm orgs={orgs} csOwners={csOwners} redirectTo="/" />
+      <ProductRequestCreateForm
+        orgs={orgs}
+        consolidations={consolidations.map((c) => ({
+          id: c.id,
+          name: c.name,
+          notes: c.notes,
+        }))}
+        csOwners={csOwners.map((o) => ({ id: o.id, name: o.name, email: o.email }))}
+        redirectTo="/"
+      />
     </div>
   );
 }

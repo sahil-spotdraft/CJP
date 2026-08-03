@@ -28,6 +28,7 @@ export default async function ConsolidationDetailPage({
           <div>
             <h1 className="font-[family-name:var(--font-display)] text-3xl">{detail.name}</h1>
             {detail.feature ? <p className="mt-1 text-[var(--ink-muted)]">{detail.feature}</p> : null}
+            {detail.notes ? <p className="mt-2 max-w-2xl text-sm text-[var(--ink-muted)]">{detail.notes}</p> : null}
           </div>
           <div className="text-right">
             <p className="text-xs uppercase tracking-wide text-[var(--ink-muted)]">SUM of Account ARR</p>
@@ -69,7 +70,7 @@ export default async function ConsolidationDetailPage({
             <div className="mt-3 flex flex-wrap gap-2 text-xs">
               <Badge>WS Name: {request.org.name}</Badge>
               <Badge>Account ARR: {formatArr(request.org.arr)}</Badge>
-              {request.csOwner ? <Badge>CS: {request.csOwner}</Badge> : null}
+              {request.csOwner ? <Badge>CS: {request.csOwner.name}</Badge> : null}
               {request.timeline ? <Badge>{request.timeline}</Badge> : null}
             </div>
           </div>

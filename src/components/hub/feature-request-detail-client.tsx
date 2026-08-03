@@ -9,12 +9,14 @@ import { Badge } from "@/components/ui/badge";
 import { Input, Label, Textarea } from "@/components/ui/input";
 import { ClmPriorityBadge, ClmStatusBadge } from "@/components/hub/status-badge";
 import { cn } from "@/lib/utils";
+import { formatCsOwnerLabel } from "@/lib/cs-owner-label";
 
 const statuses = Object.values(ClmRequestStatus);
 const priorities = Object.values(ClmPriority);
 
 type OrgOption = { id: string; name: string; arr: number | null };
-type ConsolidationOption = { id: string; name: string };
+type ConsolidationOption = { id: string; name: string; notes?: string | null };
+type CsOwnerOption = { id: string; name: string; email: string };
 
 type Detail = {
   id: string;
@@ -22,13 +24,13 @@ type Detail = {
   wsId: string;
   wsName: string;
   accountArr: number | null;
-  csOwner: string | null;
+  csOwner: { id: string; name: string; email: string } | null;
   timeline: string | null;
   productNotes: string | null;
   csNotes: string | null;
   priority: ClmPriority | null;
   status: ClmRequestStatus;
-  consolidation: { id: string; name: string; feature: string | null } | null;
+  consolidation: { id: string; name: string; feature: string | null; notes?: string | null } | null;
   featureRequest: { id: string; title: string; status: string } | null;
 };
 
@@ -49,7 +51,7 @@ export function FeatureRequestDetailClient({
   detail: Detail;
   orgs: OrgOption[];
   consolidations: ConsolidationOption[];
-  csOwners: string[];
+  csOwners: CsOwnerOption[];
   requestingCustomers: RequestingCustomer[];
 }>) {
   const router = useRouter();
@@ -62,7 +64,7 @@ export function FeatureRequestDetailClient({
     requestingCustomers.map((c) => c.id),
   );
   const [consolidationId, setConsolidationId] = useState(detail.consolidation?.id ?? "");
-  const [csOwner, setCsOwner] = useState(detail.csOwner ?? "");
+  const [csOwnerId, setCsOwnerId] = useState(detail.csOwner?.id ?? "");
   const [timeline, setTimeline] = useState(detail.timeline ?? "");
   const [productNotes, setProductNotes] = useState(detail.productNotes ?? "");
   const [csNotes, setCsNotes] = useState(detail.csNotes ?? "");
@@ -73,7 +75,7 @@ export function FeatureRequestDetailClient({
     setAsk(detail.ask);
     setWorkspaceIds(requestingCustomers.map((c) => c.id));
     setConsolidationId(detail.consolidation?.id ?? "");
-    setCsOwner(detail.csOwner ?? "");
+    setCsOwnerId(detail.csOwner?.id ?? "");
     setTimeline(detail.timeline ?? "");
     setProductNotes(detail.productNotes ?? "");
     setCsNotes(detail.csNotes ?? "");
@@ -120,7 +122,7 @@ export function FeatureRequestDetailClient({
         body: JSON.stringify({
           ask: ask.trim(),
           consolidationId: consolidationId || null,
-          csOwner: csOwner.trim() || null,
+          csOwnerId: csOwnerId || null,
           timeline: timeline.trim() || null,
           productNotes: productNotes.trim() || null,
           csNotes: csNotes.trim() || null,
@@ -211,27 +213,25 @@ export function FeatureRequestDetailClient({
               {consolidations.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
+                  {c.notes ? ` — ${c.notes.slice(0, 40)}${c.notes.length > 40 ? "…" : ""}` : ""}
                 </option>
               ))}
             </select>
           </div>
           <div>
-            <Label htmlFor="csOwner">CS Owner</Label>
+            <Label htmlFor="csOwnerId">CS Owner</Label>
             <select
-              id="csOwner"
+              id="csOwnerId"
               className="w-full rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm"
-              value={csOwner}
-              onChange={(e) => setCsOwner(e.target.value)}
+              value={csOwnerId}
+              onChange={(e) => setCsOwnerId(e.target.value)}
             >
               <option value="">None</option>
               {csOwners.map((owner) => (
-                <option key={owner} value={owner}>
-                  {owner}
+                <option key={owner.id} value={owner.id}>
+                  {formatCsOwnerLabel(owner)}
                 </option>
               ))}
-              {csOwner && !csOwners.includes(csOwner) ? (
-                <option value={csOwner}>{csOwner}</option>
-              ) : null}
             </select>
           </div>
           <div>
@@ -302,7 +302,10 @@ export function FeatureRequestDetailClient({
         </div>
 
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <Field label="CS Owner" value={detail.csOwner || "—"} />
+          <Field
+            label="CS Owner"
+            value={detail.csOwner ? formatCsOwnerLabel(detail.csOwner) : "—"}
+          />
           <Field label="Timeline" value={detail.timeline || "—"} />
           <div>
             <p className="text-xs uppercase tracking-wide text-[var(--ink-muted)]">Consolidation</p>

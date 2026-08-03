@@ -22,7 +22,7 @@ const patchSchema = z.object({
   ask: z.string().min(1).optional(),
   orgId: z.string().min(1).optional(),
   consolidationId: z.string().nullable().optional(),
-  csOwner: z.string().nullable().optional(),
+  csOwnerId: z.string().nullable().optional(),
   priority: priorityEnum.nullable().optional(),
   status: statusEnum.optional(),
   productNotes: z.string().nullable().optional(),

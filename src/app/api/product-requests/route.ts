@@ -27,9 +27,10 @@ export async function GET() {
 }
 
 const createSchema = z.object({
-  orgId: z.string().min(1),
+  workspaceIds: z.array(z.string().min(1)).min(1, "At least one workspace is required"),
   ask: z.string().min(1),
-  csOwner: z.string().optional(),
+  consolidationId: z.string().min(1, "Consolidation is required"),
+  csOwnerId: z.string().min(1, "CS Owner is required"),
   priority: priorityEnum.optional(),
   status: statusEnum.optional(),
   productNotes: z.string().optional(),

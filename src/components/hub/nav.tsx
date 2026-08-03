@@ -11,6 +11,7 @@ const links = [
   { href: "/", label: "Feature Requests" },
   { href: "/analytics", label: "Analytics" },
   { href: "/consolidation", label: "Consolidation" },
+  { href: "/cs-owners", label: "CS Owners" },
   { href: "/orgs", label: "Orgs" },
 ];
 

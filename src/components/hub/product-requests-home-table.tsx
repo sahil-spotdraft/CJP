@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { ClmPriorityBadge, ClmStatusBadge } from "@/components/hub/status-badge";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { formatCsOwnerLabel } from "@/lib/cs-owner-label";
 
 export type ProductRequestRow = {
   id: string;
@@ -16,7 +17,7 @@ export type ProductRequestRow = {
   consolidation: { id: string; name: string; feature: string | null } | null;
   /** All workspaces asking for the same feature/consolidation (can be many). */
   relatedWsNames: string[];
-  csOwner: string | null;
+  csOwner: { id: string; name: string; email: string } | null;
   priority: ClmPriority | null;
   status: ClmRequestStatus;
   productNotes: string | null;
@@ -42,7 +43,9 @@ export function ProductRequestsHomeTable({
 
   const options = useMemo(
     () => ({
-      csOwners: uniqueSorted(requests.map((r) => r.csOwner ?? "")),
+      csOwners: uniqueSorted(
+        requests.map((r) => (r.csOwner ? formatCsOwnerLabel(r.csOwner) : "")),
+      ),
       priorities: Object.values(ClmPriority),
       statuses: Object.values(ClmRequestStatus),
     }),
@@ -54,7 +57,7 @@ export function ProductRequestsHomeTable({
     return requests.filter((r) => {
       const wsNames = r.relatedWsNames.length ? r.relatedWsNames : [r.wsName];
       if (q && !wsNames.some((name) => name.toLowerCase().includes(q))) return false;
-      if (csOwner && (r.csOwner ?? "") !== csOwner) return false;
+      if (csOwner && (!r.csOwner || formatCsOwnerLabel(r.csOwner) !== csOwner)) return false;
       if (priority && r.priority !== priority) return false;
       if (status && r.status !== status) return false;
       return true;
@@ -186,7 +189,16 @@ export function ProductRequestsHomeTable({
                     </div>
                   </td>
                   <td className="px-4 py-3 max-w-[280px] font-medium">{row.ask}</td>
-                  <td className="px-4 py-3">{row.csOwner || "—"}</td>
+                  <td className="px-4 py-3">
+                    {row.csOwner ? (
+                      <div>
+                        <div>{row.csOwner.name}</div>
+                        <div className="text-xs text-[var(--ink-muted)]">{row.csOwner.email}</div>
+                      </div>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
                   <td className="px-4 py-3">
                     {row.priority ? <ClmPriorityBadge priority={row.priority} /> : "—"}
                   </td>

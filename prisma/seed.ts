@@ -17,11 +17,68 @@ async function upsertOrg(params: { slug: string; name: string; arr: number }) {
   });
 }
 
-async function upsertConsolidation(name: string, feature?: string) {
+async function upsertCsOwner(params: { id: string; name: string; email: string }) {
+  return prisma.csOwner.upsert({
+    where: { email: params.email.toLowerCase() },
+    update: { name: params.name },
+    create: {
+      id: params.id,
+      name: params.name,
+      email: params.email.toLowerCase(),
+    },
+  });
+}
+
+/** Remove migration leftovers that share a name with a canonical CS owner. */
+async function dedupeCsOwners() {
+  const owners = await prisma.csOwner.findMany({
+    include: { _count: { select: { productRequests: true } } },
+  });
+  const byName = new Map<string, typeof owners>();
+  for (const owner of owners) {
+    const key = owner.name.trim().toLowerCase();
+    const list = byName.get(key) ?? [];
+    list.push(owner);
+    byName.set(key, list);
+  }
+
+  for (const group of byName.values()) {
+    if (group.length < 2) continue;
+    const keep =
+      group.find((o) => o.id.startsWith("seed_")) ||
+      group.find((o) => !o.email.endsWith("@cs.moonshot.local")) ||
+      [...group].sort((a, b) => b._count.productRequests - a._count.productRequests)[0];
+
+    for (const dup of group) {
+      if (dup.id === keep.id) continue;
+      await prisma.productRequest.updateMany({
+        where: { csOwnerId: dup.id },
+        data: { csOwnerId: keep.id },
+      });
+      await prisma.csOwner.delete({ where: { id: dup.id } });
+    }
+  }
+
+  await prisma.csOwner.deleteMany({
+    where: {
+      email: { endsWith: "@cs.moonshot.local" },
+      productRequests: { none: {} },
+    },
+  });
+}
+
+async function upsertConsolidation(name: string, feature?: string, notes?: string) {
   return prisma.consolidation.upsert({
     where: { name },
-    update: { feature: feature ?? undefined },
-    create: { name, feature: feature ?? undefined },
+    update: {
+      feature: feature ?? undefined,
+      notes: notes ?? undefined,
+    },
+    create: {
+      name,
+      feature: feature ?? undefined,
+      notes: notes ?? undefined,
+    },
   });
 }
 
@@ -30,7 +87,7 @@ async function upsertProductRequest(params: {
   orgId: string;
   ask: string;
   consolidationId: string;
-  csOwner: string;
+  csOwnerId: string;
   priority: ClmPriority;
   status: ClmRequestStatus;
   productNotes?: string;
@@ -43,7 +100,7 @@ async function upsertProductRequest(params: {
       orgId: params.orgId,
       ask: params.ask,
       consolidationId: params.consolidationId,
-      csOwner: params.csOwner,
+      csOwnerId: params.csOwnerId,
       priority: params.priority,
       status: params.status,
       productNotes: params.productNotes ?? null,
@@ -55,7 +112,7 @@ async function upsertProductRequest(params: {
       orgId: params.orgId,
       ask: params.ask,
       consolidationId: params.consolidationId,
-      csOwner: params.csOwner,
+      csOwnerId: params.csOwnerId,
       priority: params.priority,
       status: params.status,
       productNotes: params.productNotes,
@@ -97,6 +154,36 @@ async function main() {
   const ocrolus = await upsertOrg({ slug: "ocrolus", name: "Ocrolus", arr: 72250 });
   const twelveLabs = await upsertOrg({ slug: "twelve-labs", name: "Twelve Labs", arr: 35150 });
   const tennr = await upsertOrg({ slug: "tennr", name: "Tennr", arr: 29600 });
+
+  const csOwners = {
+    shubham: await upsertCsOwner({
+      id: "seed_cs_shubham",
+      name: "Shubham",
+      email: "shubham@moonshot.local",
+    }),
+    pooja: await upsertCsOwner({
+      id: "seed_cs_pooja",
+      name: "Pooja",
+      email: "pooja@moonshot.local",
+    }),
+    vanshika: await upsertCsOwner({
+      id: "seed_cs_vanshika",
+      name: "Vanshika",
+      email: "vanshika@moonshot.local",
+    }),
+    jamie: await upsertCsOwner({
+      id: "seed_cs_jamie",
+      name: "Jamie Lee",
+      email: "jamie.lee@moonshot.local",
+    }),
+    priya: await upsertCsOwner({
+      id: "seed_cs_priya",
+      name: "Priya Nair",
+      email: "priya.nair@moonshot.local",
+    }),
+  };
+
+  await dedupeCsOwners();
 
   const acmeChannel = await prisma.slackChannel.upsert({
     where: { channelId: "C_ACME_SUPPORT" },
@@ -210,12 +297,33 @@ async function main() {
     initiatingContracts: await upsertConsolidation(
       "Initiating New Contracts from existing page",
       "Contracts",
+      "Enable starting a new contract from the Existing Contracts page instead of only from Home.",
     ),
-    legalUserAssignment: await upsertConsolidation("Legal User assignment", "Access control"),
-    sfdcFieldLock: await upsertConsolidation("SFDC Field-Level Lock/Hide Controls", "Salesforce"),
-    signatureFields: await upsertConsolidation("Additional Fields - Signature blocks", "Signature"),
-    approvals: await upsertConsolidation("Approvals", "Approvals"),
-    versionDeletion: await upsertConsolidation("Version Deletion", "Document versioning"),
+    legalUserAssignment: await upsertConsolidation(
+      "Legal User assignment",
+      "Access control",
+      "Support assigning Legal Owner / Legal Reviewer on intake forms.",
+    ),
+    sfdcFieldLock: await upsertConsolidation(
+      "SFDC Field-Level Lock/Hide Controls",
+      "Salesforce",
+      "Lock or hide selected SFDC-mapped fields during contract creation.",
+    ),
+    signatureFields: await upsertConsolidation(
+      "Additional Fields - Signature blocks",
+      "Signature",
+      "Add email (and related fields) to signature blocks.",
+    ),
+    approvals: await upsertConsolidation(
+      "Approvals",
+      "Approvals",
+      "Restrict who can upload executed copies — admins and legal only.",
+    ),
+    versionDeletion: await upsertConsolidation(
+      "Version Deletion",
+      "Document versioning",
+      "Delete individual document versions without wiping history.",
+    ),
   };
 
   await upsertProductRequest({
@@ -223,7 +331,7 @@ async function main() {
     orgId: versant.id,
     ask: "No capability to auto-generate SOWs from MSAs, requiring manual recreation of terms for every project which is inefficient and error-prone. Currently you have to initiate contract from Home and can't initiate new contract from Existing Contracts page.",
     consolidationId: consolidations.initiatingContracts.id,
-    csOwner: "Shubham",
+    csOwnerId: csOwners.shubham.id,
     priority: ClmPriority.CRITICAL,
     status: ClmRequestStatus.DISCUSSED_WITH_PRODUCT,
   });
@@ -233,7 +341,7 @@ async function main() {
     orgId: versant.id,
     ask: "Requirement to support a User question type for Legal Owner and Legal Reviewer so users can be assigned on the intake / questionnaire form itself.",
     consolidationId: consolidations.legalUserAssignment.id,
-    csOwner: "Shubham",
+    csOwnerId: csOwners.shubham.id,
     priority: ClmPriority.CRITICAL,
     status: ClmRequestStatus.DISCUSSED_WITH_PRODUCT,
   });
@@ -243,7 +351,7 @@ async function main() {
     orgId: ocrolus.id,
     ask: "Ability to lock certain SFDC mapped fields when creating a contract",
     consolidationId: consolidations.sfdcFieldLock.id,
-    csOwner: "Pooja",
+    csOwnerId: csOwners.pooja.id,
     priority: ClmPriority.CRITICAL,
     status: ClmRequestStatus.IN_ROADMAP,
   });
@@ -253,7 +361,7 @@ async function main() {
     orgId: ocrolus.id,
     ask: "Ability to have email ID as a field in the signature blocks",
     consolidationId: consolidations.signatureFields.id,
-    csOwner: "Pooja",
+    csOwnerId: csOwners.pooja.id,
     priority: ClmPriority.LOW,
     status: ClmRequestStatus.NEW,
   });
@@ -263,7 +371,7 @@ async function main() {
     orgId: twelveLabs.id,
     ask: "Ability to have email ID as a field in the signature blocks",
     consolidationId: consolidations.signatureFields.id,
-    csOwner: "Vanshika",
+    csOwnerId: csOwners.vanshika.id,
     priority: ClmPriority.HIGH,
     status: ClmRequestStatus.NEW,
   });
@@ -273,7 +381,7 @@ async function main() {
     orgId: tennr.id,
     ask: "Ability to have email ID as a field in the signature blocks",
     consolidationId: consolidations.signatureFields.id,
-    csOwner: "Vanshika",
+    csOwnerId: csOwners.vanshika.id,
     priority: ClmPriority.HIGH,
     status: ClmRequestStatus.NEW,
   });
@@ -283,7 +391,7 @@ async function main() {
     orgId: ocrolus.id,
     ask: "Is there a way to turn off the feature where users can upload executed copies of documents? Customers want only Admins and Legal to have this ability.",
     consolidationId: consolidations.approvals.id,
-    csOwner: "Pooja",
+    csOwnerId: csOwners.pooja.id,
     priority: ClmPriority.LOW,
     status: ClmRequestStatus.DISCUSSED_WITH_PRODUCT,
     productNotes: "this should be approval needed",
@@ -294,7 +402,7 @@ async function main() {
     orgId: acme.id,
     ask: "Allow deleting an individual document version instead of the whole history.",
     consolidationId: consolidations.versionDeletion.id,
-    csOwner: "Jamie Lee",
+    csOwnerId: csOwners.jamie.id,
     priority: ClmPriority.HIGH,
     status: ClmRequestStatus.DISCUSSED_WITH_PRODUCT,
     productNotes: "Scoped for the versioning revamp; needs audit-log follow-up.",
@@ -307,7 +415,7 @@ async function main() {
     orgId: globex.id,
     ask: "Need to purge outdated contract versions to stay under storage limits.",
     consolidationId: consolidations.versionDeletion.id,
-    csOwner: "Priya Nair",
+    csOwnerId: csOwners.priya.id,
     priority: ClmPriority.HIGH,
     status: ClmRequestStatus.NEW,
     timeline: "2026-Q4",
