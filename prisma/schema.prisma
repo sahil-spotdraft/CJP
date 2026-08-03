@@ -1,0 +1,185 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum FeatureRequestStatus {
+  NEW
+  TRIAGED
+  PLANNED
+  IN_PROGRESS
+  SHIPPED
+  DECLINED
+}
+
+enum FeatureSignalStatus {
+  PENDING
+  MATCHED
+  DISMISSED
+}
+
+enum ClassificationJobStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  SKIPPED
+}
+
+model User {
+  id           String               @id @default(cuid())
+  email        String               @unique
+  name         String?
+  passwordHash String
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+  notes        FeatureRequestNote[]
+  votes        Vote[]
+}
+
+model CustomerOrg {
+  id        String         @id @default(cuid())
+  name      String
+  slug      String         @unique
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  channels  SlackChannel[]
+  signals   FeatureSignal[]
+}
+
+model SlackChannel {
+  id        String          @id @default(cuid())
+  channelId String          @unique
+  name      String
+  enabled   Boolean         @default(true)
+  orgId     String
+  org       CustomerOrg     @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  signals   FeatureSignal[]
+
+  @@index([orgId])
+}
+
+model FeatureRequest {
+  id          String               @id @default(cuid())
+  title       String
+  summary     String
+  status      FeatureRequestStatus @default(NEW)
+  embedding   Json?
+  roadmapId   String?
+  roadmap     RoadmapItem?         @relation(fields: [roadmapId], references: [id], onDelete: SetNull)
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  signals     FeatureSignal[]
+  notes       FeatureRequestNote[]
+  tags        FeatureRequestTag[]
+  votes       Vote[]
+
+  @@index([status])
+  @@index([roadmapId])
+}
+
+model FeatureSignal {
+  id              String              @id @default(cuid())
+  status          FeatureSignalStatus @default(PENDING)
+  rawText         String
+  aiTitle         String?
+  aiSummary       String?
+  aiConfidence    Float?
+  aiTags          String[]            @default([])
+  slackUserId     String?
+  slackUserName   String?
+  slackTs         String
+  threadTs        String?
+  botReplyTs      String?
+  permalink       String?
+  triageNote      String?
+  orgId           String
+  org             CustomerOrg         @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  channelId       String
+  channel         SlackChannel        @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  featureRequestId String?
+  featureRequest  FeatureRequest?     @relation(fields: [featureRequestId], references: [id], onDelete: SetNull)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  classification  ClassificationJob?
+
+  @@unique([channelId, slackTs])
+  @@index([status])
+  @@index([orgId])
+  @@index([featureRequestId])
+}
+
+model FeatureRequestNote {
+  id               String         @id @default(cuid())
+  body             String
+  featureRequestId String
+  featureRequest   FeatureRequest @relation(fields: [featureRequestId], references: [id], onDelete: Cascade)
+  authorId         String?
+  author           User?          @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  createdAt        DateTime       @default(now())
+
+  @@index([featureRequestId])
+}
+
+model Tag {
+  id        String              @id @default(cuid())
+  name      String              @unique
+  createdAt DateTime            @default(now())
+  requests  FeatureRequestTag[]
+}
+
+model FeatureRequestTag {
+  featureRequestId String
+  tagId            String
+  featureRequest   FeatureRequest @relation(fields: [featureRequestId], references: [id], onDelete: Cascade)
+  tag              Tag            @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([featureRequestId, tagId])
+}
+
+model Vote {
+  id               String         @id @default(cuid())
+  featureRequestId String
+  featureRequest   FeatureRequest @relation(fields: [featureRequestId], references: [id], onDelete: Cascade)
+  userId           String
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt        DateTime       @default(now())
+
+  @@unique([featureRequestId, userId])
+}
+
+model RoadmapItem {
+  id          String           @id @default(cuid())
+  title       String
+  theme       String?
+  quarter     String?
+  description String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  requests    FeatureRequest[]
+}
+
+model ClassificationJob {
+  id           String                  @id @default(cuid())
+  status       ClassificationJobStatus @default(PENDING)
+  model        String?
+  prompt       String?
+  responseJson Json?
+  error        String?
+  signalId     String?                 @unique
+  signal       FeatureSignal?          @relation(fields: [signalId], references: [id], onDelete: Cascade)
+  createdAt    DateTime                @default(now())
+  updatedAt    DateTime                @updatedAt
+}
+
+model AppSetting {
+  id        String   @id @default("default")
+  confidenceThreshold Float @default(0.7)
+  threadReplyEnabled  Boolean @default(true)
+  updatedAt DateTime @updatedAt
+}
