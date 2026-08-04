@@ -9,6 +9,7 @@ import { Input, Label, Textarea } from "@/components/ui/input";
 import { RequestStatusBadge, SignalStatusBadge } from "@/components/hub/status-badge";
 import { FeatureRequestActivitySection } from "@/components/hub/feature-request-activity-section";
 import type { ActivityItem } from "@/components/hub/feature-request-activity-section";
+import { formatDateTime } from "@/lib/format";
 
 type FeatureRequestSourceType = "SLACK" | "JIRA";
 
@@ -379,9 +380,7 @@ export function RequestDetailClient({ detail }: { detail: Detail }) {
                 <p>{n.body}</p>
                 <p className="mt-2 text-xs text-[var(--ink-muted)]">
                   {n.author?.name || n.author?.email || "Unknown"} ·{" "}
-                  <span suppressHydrationWarning>
-                    {new Date(n.createdAt).toLocaleString()}
-                  </span>
+                  {formatDateTime(n.createdAt)}
                 </p>
               </div>
             ))}

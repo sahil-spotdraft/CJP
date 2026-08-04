@@ -4,9 +4,14 @@ import { prisma } from "@/lib/db";
 const include = {
   org: true,
   consolidation: true,
+  csOwner: true,
 } satisfies Prisma.ProductRequestInclude;
 
 export type AnalyticsLens = "global" | "csm" | "pm";
+
+function ownerName(owner: { name: string } | null | undefined) {
+  return owner?.name || "Unassigned";
+}
 
 function uniqueArr(orgs: { id: string; arr: number | null }[]) {
   const seen = new Map<string, number>();
@@ -22,7 +27,9 @@ function pct(part: number, whole: number) {
 
 export async function getAnalytics(lens: AnalyticsLens = "global", csOwner?: string) {
   const where: Prisma.ProductRequestWhereInput =
-    lens === "csm" && csOwner ? { csOwner } : {};
+    lens === "csm" && csOwner
+      ? { csOwner: { name: csOwner } }
+      : {};
 
   const requests = await prisma.productRequest.findMany({
     where,
@@ -113,7 +120,7 @@ export async function getAnalytics(lens: AnalyticsLens = "global", csOwner?: str
     if (status === ClmRequestStatus.NEW) account.neu += 1;
     accountMap.set(r.org.id, account);
 
-    const owner = r.csOwner || "Unassigned";
+    const owner = ownerName(r.csOwner);
     const csm = csmMap.get(owner) ?? {
       owner,
       asks: 0,
@@ -220,7 +227,7 @@ export async function getAnalytics(lens: AnalyticsLens = "global", csOwner?: str
       account: r.org.name,
       arr: r.org.arr,
       theme: r.consolidation?.name ?? "—",
-      csOwner: r.csOwner,
+      csOwner: ownerName(r.csOwner),
       status: r.status,
       ask: r.ask,
     }))
@@ -237,7 +244,7 @@ export async function getAnalytics(lens: AnalyticsLens = "global", csOwner?: str
       account: r.org.name,
       arr: r.org.arr,
       theme: r.consolidation?.name ?? "—",
-      csOwner: r.csOwner,
+      csOwner: ownerName(r.csOwner),
     }))
     .sort((a, b) => (b.arr ?? 0) - (a.arr ?? 0));
 
@@ -366,7 +373,7 @@ export async function getAnalytics(lens: AnalyticsLens = "global", csOwner?: str
       arr: request.org.arr ?? 0,
       priority: request.priority ?? "NOT_SET",
       status: request.status,
-      csOwner: request.csOwner ?? "Unassigned",
+      csOwner: ownerName(request.csOwner),
     }))
     .sort((a, b) => b.arr - a.arr);
 

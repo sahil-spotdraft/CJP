@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Textarea } from "@/components/ui/input";
+import { formatDateTime } from "@/lib/format";
 
 type FeatureRequestSourceType = "SLACK" | "JIRA";
 type FeatureRequestActivityKind = "NOTE" | "SLACK" | "JIRA" | "STATUS" | "SYSTEM";
@@ -51,13 +52,7 @@ function dateTimeLocalToIso(value: string) {
 }
 
 function formatOccurredAt(iso: string) {
-  return new Date(iso).toLocaleString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  return formatDateTime(iso);
 }
 
 function errorMessage(data: unknown) {

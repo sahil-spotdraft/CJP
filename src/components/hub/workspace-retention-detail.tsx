@@ -1,13 +1,8 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
-import { money, readableLabel } from "@/lib/format";
+import { formatDate, money, readableLabel } from "@/lib/format";
 import type { WorkspaceRetentionDetail as Detail } from "@/lib/services/retention";
-
-function formatDate(value: string | null) {
-  if (!value) return "—";
-  return new Date(value).toLocaleDateString();
-}
 
 function renewalTone(band: string) {
   if (band === "HIGH") {

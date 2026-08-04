@@ -7,13 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, Stat } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
-import { money } from "@/lib/format";
+import { formatDate, formatDateTime, money } from "@/lib/format";
 import type { RetentionDashboard as RetentionData } from "@/lib/services/retention";
-
-function formatDate(value: string | null) {
-  if (!value) return "—";
-  return new Date(value).toLocaleDateString();
-}
 
 export function RetentionDashboard({ data }: Readonly<{ data: RetentionData }>) {
   const router = useRouter();
@@ -462,7 +457,7 @@ export function RetentionDashboard({ data }: Readonly<{ data: RetentionData }>) 
                     </div>
                     <p className="mt-1 line-clamp-3 text-[var(--ink-muted)]">{alert.message}</p>
                     <p className="mt-1 text-xs text-[var(--ink-muted)]">
-                      {new Date(alert.createdAt).toLocaleString()}
+                      {formatDateTime(alert.createdAt)}
                     </p>
                   </li>
                 ))}
