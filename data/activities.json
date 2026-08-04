@@ -1,0 +1,130 @@
+{
+  "activities": [
+    {
+      "id": "sfdc-design-round-1",
+      "requestId": "fr_sfdc_field_lock",
+      "kind": "SLACK",
+      "title": "Design: lock/hide controls — round 1",
+      "body": "Priya\n  Today at 10:12 AM\nHey team — first pass on SFDC field lock/hide for contract create is in Figma:\nhttps://www.figma.com/file/demo/sfdc-field-lock-r1\n\nOpen questions:\n1. Do we lock fields after SFDC sync, or also allow admins to unlock per template?\n2. Hide vs lock — should hidden fields still submit values in the background?\n\n@design @product would love eyes before we go further.\n\nAnagh\n  Today at 10:28 AM\nLooks clean. Prefer: hidden fields still sync (read-only payload) so we don't break mappings. Unlock should be admin-only + audit logged.\n\nDeepti\n  Today at 10:41 AM\n+1 on audit. Also can we show a small \"locked from Salesforce\" badge on the field label? CS keeps getting asked why they can't edit.\n\nPriya\n  Today at 10:55 AM\nBadge noted — will add in r2. Locking after sync + admin unlock path. Threading updates here.",
+      "occurredAt": "2026-07-28T10:55:00.000Z",
+      "sourceLabel": "#clm-sfdc-lock"
+    },
+    {
+      "id": "sfdc-design-round-2",
+      "requestId": "fr_sfdc_field_lock",
+      "kind": "SLACK",
+      "title": "Design back-and-forth — round 2 revisions",
+      "body": "Priya\n  Yesterday at 3:04 PM\nSFDC lock/hide r2 up: https://www.figma.com/file/demo/sfdc-field-lock-r2\n\nChanges from r1 thread:\n• \"Locked from Salesforce\" badge on locked fields\n• Admin unlock flow + confirmation modal\n• Hidden fields still submit mapped values (ghosted in UI)\n• Empty-state when *all* mapped fields are locked\n\n@Anagh @Deepti — does this unblock BE/FE split?\n\nAnagh\n  Yesterday at 3:22 PM\nYes. One tweak: unlock should be per-field, not whole form. Otherwise legal can't fix a single bad mapping without opening everything.\n\nDeepti\n  Yesterday at 3:31 PM\nAgreed on per-field. Also please note the Ocrolus ask — they want this on create *and* edit. Can we scope create-only for v1 and call out edit as follow-up?\n\nPriya\n  Yesterday at 3:40 PM\nPer-field unlock in. Create-only for v1, edit = follow-up ticket. Updating Figma now — consider design approved pending that.\n\nAnagh\n  Yesterday at 3:48 PM\nApproved from eng side. I'll cut BE tasks off this.",
+      "occurredAt": "2026-07-29T15:48:00.000Z",
+      "sourceLabel": "#clm-sfdc-lock"
+    },
+    {
+      "id": "sfdc-be-spec-done",
+      "requestId": "fr_sfdc_field_lock",
+      "kind": "SLACK",
+      "title": "BE spec is getting done",
+      "body": "Anagh\n  Today at 11:05 AM\nUpdate on SFDC field lock/hide — BE spec is getting done.\n\nCovered:\n• Field policy model (lock | hide | editable) keyed by SFDC mapping id + template\n• Sync behavior: locked after inbound SFDC sync; admin per-field unlock with audit event\n• Hidden fields still included in create payload (not rendered)\n• API: GET/PUT `/templates/{id}/field-policies`\n• Create-contract path honors policies; edit-contract deferred (follow-up)\n\nOpen for FE:\n• Badge + unlock modal copy from Figma r2\n• Empty state when all fields locked\n\nDoc: https://docs.internal/clm/sfdc-field-lock-be-spec\nCC: @Priya @Deepti @pt\n\nWill ping when PR for policy APIs is up.",
+      "occurredAt": "2026-08-03T11:05:00.000Z",
+      "sourceLabel": "#clm-sfdc-lock"
+    },
+    {
+      "id": "sig-design-email-field",
+      "requestId": "fr_signature_fields",
+      "kind": "SLACK",
+      "title": "Design: email in signature block",
+      "body": "Jamie\n  Monday at 2:15 PM\nWorking design for \"Email ID in signature blocks\" — early draft:\nhttps://www.figma.com/file/demo/signature-email-field\n\nQuestions for CS/product:\n1. Is email required when the block is present, or optional?\n2. Should it prefill from the counterparty contact if we have one?\n3. Ocrolus / Twelve Labs / Tennr all asked — any template-level toggle or always-on?\n\nShubham\n  Monday at 2:41 PM\nOptional field, prefill when we have a contact email, template toggle default OFF so existing packs don't change behavior overnight.\n\nJamie\n  Monday at 3:02 PM\nPerfect — updating frames. Will share r2 tomorrow.",
+      "occurredAt": "2026-07-27T14:15:00.000Z",
+      "sourceLabel": "#clm-signature-blocks"
+    },
+    {
+      "id": "sig-design-back-forth",
+      "requestId": "fr_signature_fields",
+      "kind": "SLACK",
+      "title": "Design back-and-forth — validation + placement",
+      "body": "Jamie\n  Tuesday at 11:20 AM\nr2 for signature email field: https://www.figma.com/file/demo/signature-email-field-r2\n\n• Optional field under name in the block\n• Prefill from counterparty contact\n• Template toggle \"Include email in signature block\"\n• Inline validation (basic email format)\n\nShubham\n  Tuesday at 11:48 AM\nLooks good. Can we allow multiple emails (CC signers) or keep single for v1?\n\nVanshika\n  Tuesday at 12:05 PM\nPlease keep single for v1 — multi-signer email is a separate ask and will balloon scope. Also move the field *below* title so print layout doesn't collide with the stamp.\n\nJamie\n  Tuesday at 12:22 PM\nSingle email, moved below title. Marking design ready for eng.\n\nShubham\n  Tuesday at 12:30 PM\nAck — picking up FE tomorrow once BE adds the field on the block schema.",
+      "occurredAt": "2026-07-28T12:30:00.000Z",
+      "sourceLabel": "#clm-signature-blocks"
+    },
+    {
+      "id": "sig-be-schema-landed",
+      "requestId": "fr_signature_fields",
+      "kind": "SLACK",
+      "title": "BE: signature block email field landed",
+      "body": "Shubham\n  Today at 4:10 PM\nBE update — email field on signature blocks is in.\n\n• Schema: `signatureBlocks[].email` (nullable string)\n• Template flag: `includeEmailInSignatureBlock`\n• Prefill hook from counterparty contact when flag is on\n• Validation on create/send: format only if present\n\nFE can wire the Figma r2 control. Tracking ticket CLM-1842.\nCC: @Jamie @Vanshika @pt",
+      "occurredAt": "2026-08-02T16:10:00.000Z",
+      "sourceLabel": "#clm-signature-blocks"
+    },
+    {
+      "id": "ver-design-purge-flow",
+      "requestId": "fr_version_deletion",
+      "kind": "SLACK",
+      "title": "Design: version delete + purge confirm",
+      "body": "Priya\n  Last Wednesday at 9:40 AM\nFirst pass on version deletion / storage purge:\nhttps://www.figma.com/file/demo/version-deletion\n\nFlow:\n1. Version history → ⋮ → Delete version\n2. Confirm modal with \"This cannot be undone\" + storage reclaimed estimate\n3. Cannot delete current/published version\n\nAcme + Globex both hitting storage caps — want this ASAP.\n\n@product @eng thoughts?\n\nPooja\n  Last Wednesday at 10:05 AM\nCS loves this. Please add: who deleted + when in the remaining history (audit line), otherwise renewals get messy.\n\nAnagh\n  Last Wednesday at 10:19 AM\nAgree on audit. Also soft-delete for 7 days before hard purge? Or hard delete immediately for storage relief?\n\nPriya\n  Last Wednesday at 10:35 AM\nHard delete for v1 (storage is the pain). Audit line stays on the parent doc. Updating Figma.",
+      "occurredAt": "2026-07-22T10:35:00.000Z",
+      "sourceLabel": "#clm-versioning"
+    },
+    {
+      "id": "ver-design-back-forth",
+      "requestId": "fr_version_deletion",
+      "kind": "SLACK",
+      "title": "Design back-and-forth — bulk purge",
+      "body": "Priya\n  Last Thursday at 1:15 PM\nr2: https://www.figma.com/file/demo/version-deletion-r2\n\n• Hard delete + audit line on parent\n• Block delete of current version\n• New: multi-select old versions → \"Delete selected\" for storage cleanup\n\nPooja\n  Last Thursday at 1:42 PM\nBulk is what Acme asked for — nice. Can we default-sort oldest first so they don't accidentally nuke recent drafts?\n\nAnagh\n  Last Thursday at 1:55 PM\nYes please. Also cap bulk at 50/version page to keep the API sane.\n\nPriya\n  Last Thursday at 2:08 PM\nOldest-first + 50 cap. Design locked from my side.\n\nAnagh\n  Last Thursday at 2:12 PM\nBE will start with single-delete API this sprint; bulk next. Thread for status.",
+      "occurredAt": "2026-07-23T14:12:00.000Z",
+      "sourceLabel": "#clm-versioning"
+    },
+    {
+      "id": "ver-be-spec-done",
+      "requestId": "fr_version_deletion",
+      "kind": "SLACK",
+      "title": "BE spec is getting done",
+      "body": "Anagh\n  Today at 9:50 AM\nVersion deletion — BE spec is getting done.\n\n• `DELETE /documents/{id}/versions/{versionId}` — hard delete, forbids current version\n• Audit event on parent: actor, version label, bytes reclaimed\n• Bulk endpoint drafted but deferred to next sprint (max 50)\n• Storage quota recalc async after delete\n\nSpec: https://docs.internal/clm/version-deletion-be\nCC: @Priya @Pooja @pt",
+      "occurredAt": "2026-08-03T09:50:00.000Z",
+      "sourceLabel": "#clm-versioning"
+    },
+    {
+      "id": "legal-assignment-design",
+      "requestId": "fr_legal_user_assignment",
+      "kind": "SLACK",
+      "title": "Design: Legal Owner / Reviewer question type",
+      "body": "Jamie\n  Friday at 4:05 PM\nIntake form — User question type for Legal Owner / Legal Reviewer draft:\nhttps://www.figma.com/file/demo/legal-user-assignment\n\n• Typeahead of workspace users (legal role filter optional)\n• Required vs optional per question config\n• Shows avatar + email in the filled state\n\nVersant is the loudest ask here.\n\nVanshika\n  Friday at 4:28 PM\nCan we allow \"assign later\" empty state that still lets the form submit? Some deals don't know reviewer at intake.\n\nJamie\n  Friday at 4:40 PM\nYes — optional by default; admins can mark required on the template. Updating copy.",
+      "occurredAt": "2026-07-31T16:40:00.000Z",
+      "sourceLabel": "#clm-intake"
+    },
+    {
+      "id": "legal-design-back-forth",
+      "requestId": "fr_legal_user_assignment",
+      "kind": "SLACK",
+      "title": "Design back-and-forth — role filter",
+      "body": "Jamie\n  Today at 10:00 AM\nr2 legal user assignment: https://www.figma.com/file/demo/legal-user-assignment-r2\n\n• Optional/required toggle\n• Optional \"Legal role only\" filter on the typeahead\n• Empty = assign later\n\nVanshika\n  Today at 10:18 AM\nFilter should default ON for Legal Reviewer questions, OFF for generic User questions. Same component, different defaults.\n\nAnagh\n  Today at 10:27 AM\nWorks for BE — we'll pass `roleFilter: legal | none` on the question config.\n\nJamie\n  Today at 10:35 AM\nDefaults updated. Shipping design to eng.",
+      "occurredAt": "2026-08-03T10:35:00.000Z",
+      "sourceLabel": "#clm-intake"
+    },
+    {
+      "id": "init-contracts-status",
+      "requestId": "fr_initiating_contracts",
+      "kind": "SLACK",
+      "title": "Status: SOW-from-MSA on Existing Contracts",
+      "body": "Deepti\n  Today at 2:20 PM\nQuick status — Initiate contract from Existing Contracts page.\n\n• Entry point on MSA row actions: \"Create SOW\"\n• Prefills counterparty + commercial fields from parent MSA\n• Versant validated the happy path in staging yesterday\n\nStill open: permission (who can initiate) — defaulting to same as Create Contract from Home unless CS says otherwise.\n\nCC: @Pooja @pt",
+      "occurredAt": "2026-08-03T14:20:00.000Z",
+      "sourceLabel": "#clm-contracts"
+    },
+    {
+      "id": "approvals-design-gate",
+      "requestId": "fr_approvals_executed_upload",
+      "kind": "SLACK",
+      "title": "Design: executed upload approval gate",
+      "body": "Priya\n  Monday at 11:10 AM\nExecuted-copy upload restriction — design draft:\nhttps://www.figma.com/file/demo/executed-upload-gate\n\n• Non-admin/non-legal sees disabled Upload + tooltip\n• Admin/Legal: normal upload\n• Optional: request access → notifies Legal Owner\n\nOcrolus flagged random AE uploads of \"final\" PDFs messing audit.\n\nPooja\n  Monday at 11:33 AM\nPlease keep \"request access\" — otherwise AEs just Slack legal anyway with no trail.\n\nPriya\n  Monday at 11:45 AM\nRequest access stays. Will tighten empty states and ship r2.",
+      "occurredAt": "2026-07-20T11:45:00.000Z",
+      "sourceLabel": "#clm-approvals"
+    },
+    {
+      "id": "csv-export-shipped-note",
+      "requestId": "seed_export_csv",
+      "kind": "SLACK",
+      "title": "CSV export — FE polish in review",
+      "body": "Shubham\n  Today at 1:05 PM\nCSV export for weekly reports — FE polish PR up.\n\n• Download button on report header\n• Filename: `{report}-{yyyy-mm-dd}.csv`\n• Empty report → toast instead of empty file\n\nAcme was the original ask. Should be in next staging cut.\nCC: @pt",
+      "occurredAt": "2026-08-03T13:05:00.000Z",
+      "sourceLabel": "#product-insights"
+    }
+  ]
+}
