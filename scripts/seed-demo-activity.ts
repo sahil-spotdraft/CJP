@@ -1,17 +1,16 @@
 /**
  * Add one FeatureRequestActivity from data/activities.json.
- * Looks up the JSON entry by activity id, verifies the FeatureRequest exists,
- * then inserts into the DB (idempotent by activity id).
  *
- * Demo flow:
- *   1. Copy the activity `body` from data/activities.json
- *   2. Paste it into Slack (for the pitch)
- *   3. Run:
+ * Activities are generic templates (no requestId in JSON).
+ * You pass activity id + any FeatureRequest or ProductRequest id.
+ * If the request already has linked sources, the activity attaches to a
+ * matching existing source (SLACK/JIRA by kind) — it does not create channels.
  *
- *      npm run demo:activity -- <activity-id> <request-id>
+ *      npm run demo:activity -- <activity-id> <feature-or-product-request-id>
  *
- * Example:
- *      npm run demo:activity -- sfdc-be-spec-done fr_sfdc_field_lock
+ * Examples:
+ *      npm run demo:activity -- be-spec-done seed_pr_tennr_signature_email
+ *      npm run demo:activity -- blocker-escalation fr_sfdc_field_lock
  *
  * List available ids:
  *      npm run demo:activity
@@ -19,6 +18,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
+  ActivityLevel,
   FeatureRequestActivityKind,
   FeatureRequestSourceType,
   PrismaClient,
@@ -28,12 +28,13 @@ const prisma = new PrismaClient();
 
 type ActivitySeed = {
   id: string;
-  requestId: string;
   kind?: keyof typeof FeatureRequestActivityKind;
+  level?: keyof typeof ActivityLevel;
   title: string;
-  body: string;
+  /** Prefer `lines` (no \\n in JSON). `body` still accepted. */
+  lines?: string[];
+  body?: string;
   occurredAt?: string;
-  sourceLabel?: string;
 };
 
 type ActivitiesFile = {
@@ -47,79 +48,130 @@ function loadActivities(): ActivitySeed[] {
   return parsed.activities ?? [];
 }
 
+function bodyFromEntry(entry: ActivitySeed): string | null {
+  if (Array.isArray(entry.lines) && entry.lines.length > 0) {
+    return entry.lines.join("\n");
+  }
+  if (entry.body?.trim()) return entry.body.trim();
+  return null;
+}
+
 function printUsage(activities: ActivitySeed[]) {
-  console.log("Usage: npm run demo:activity -- <activity-id> <request-id>\n");
+  console.log(
+    "Usage: npm run demo:activity -- <activity-id> <feature-or-product-request-id>\n",
+  );
+  console.log(
+    "Activities are generic — they attach to whatever request id you pass.\n" +
+      "Product-request URLs like /product-requests/seed_pr_tennr_signature_email work;\n" +
+      "activities store on the linked FeatureRequest (fr_*).\n",
+  );
   console.log("Available entries:");
-
-  const byRequest = new Map<string, ActivitySeed[]>();
   for (const a of activities) {
-    const list = byRequest.get(a.requestId) ?? [];
-    list.push(a);
-    byRequest.set(a.requestId, list);
-  }
-
-  for (const [requestId, list] of [...byRequest.entries()].sort((a, b) =>
-    a[0].localeCompare(b[0]),
-  )) {
-    console.log(`  ${requestId}`);
-    for (const a of list) {
-      console.log(`    ${a.id}  —  ${a.title}`);
-    }
+    console.log(`  ${a.id}  [${a.level ?? "INFO"}]  —  ${a.title}`);
   }
 }
 
-async function ensureSlackSource(featureRequestId: string, label: string) {
-  const existing = await prisma.featureRequestSource.findFirst({
-    where: {
-      featureRequestId,
-      type: FeatureRequestSourceType.SLACK,
-      label,
-    },
+async function resolveFeatureRequestId(inputId: string): Promise<{
+  featureRequestId: string;
+  title: string;
+  via: string;
+}> {
+  const feature = await prisma.featureRequest.findUnique({
+    where: { id: inputId },
   });
-  if (existing) return existing;
+  if (feature) {
+    return {
+      featureRequestId: feature.id,
+      title: feature.title,
+      via: "FeatureRequest",
+    };
+  }
 
-  return prisma.featureRequestSource.create({
-    data: {
-      featureRequestId,
-      type: FeatureRequestSourceType.SLACK,
-      label,
-      url: `https://slack.com/app_redirect?channel=${encodeURIComponent(label.replace(/^#/, ""))}`,
-    },
+  const product = await prisma.productRequest.findUnique({
+    where: { id: inputId },
+    include: { consolidation: true },
   });
+  if (!product) {
+    throw new Error(
+      `No FeatureRequest or ProductRequest found for id: ${inputId}.`,
+    );
+  }
+
+  const linked =
+    product.featureRequestId ?? product.consolidation?.featureRequestId ?? null;
+  if (!linked) {
+    throw new Error(
+      `ProductRequest ${inputId} has no linked FeatureRequest. Promote its consolidation first.`,
+    );
+  }
+
+  const linkedFeature = await prisma.featureRequest.findUnique({
+    where: { id: linked },
+  });
+  if (!linkedFeature) {
+    throw new Error(
+      `ProductRequest ${inputId} points at missing FeatureRequest ${linked}.`,
+    );
+  }
+
+  return {
+    featureRequestId: linkedFeature.id,
+    title: linkedFeature.title,
+    via: `ProductRequest ${inputId}`,
+  };
 }
 
-async function seedOneActivity(entry: ActivitySeed, requestId: string) {
-  const request = await prisma.featureRequest.findUnique({ where: { id: requestId } });
-  if (!request) {
-    throw new Error(
-      `FeatureRequest not found: ${requestId}. Promote/seed requests first, or fix the request id.`,
-    );
+async function resolveExistingSource(
+  featureRequestId: string,
+  kind: FeatureRequestActivityKind,
+) {
+  const preferredType =
+    kind === FeatureRequestActivityKind.JIRA
+      ? FeatureRequestSourceType.JIRA
+      : kind === FeatureRequestActivityKind.SLACK
+        ? FeatureRequestSourceType.SLACK
+        : null;
+
+  const sources = await prisma.featureRequestSource.findMany({
+    where: { featureRequestId },
+    orderBy: { createdAt: "asc" },
+  });
+
+  if (preferredType) {
+    const match = sources.find((s) => s.type === preferredType);
+    if (match) return match;
   }
 
-  if (entry.requestId !== requestId) {
-    throw new Error(
-      `Request id mismatch: JSON entry "${entry.id}" is for "${entry.requestId}", ` +
-        `but you passed "${requestId}".`,
-    );
-  }
+  return sources[0] ?? null;
+}
+
+async function seedOneActivity(entry: ActivitySeed, inputRequestId: string) {
+  const resolved = await resolveFeatureRequestId(inputRequestId);
+  const featureRequestId = resolved.featureRequestId;
+  // Scope template id per request so the same generic activity can land on many requests.
+  const activityRowId = `${entry.id}__${featureRequestId}`;
 
   const existing = await prisma.featureRequestActivity.findUnique({
-    where: { id: entry.id },
+    where: { id: activityRowId },
   });
   if (existing) {
-    console.log(`Already in DB: ${entry.id} — ${entry.title}`);
-    console.log(`  request: ${existing.featureRequestId}`);
-    console.log(`Open /requests/${existing.featureRequestId} to view it.`);
+    console.log(`Already in DB: ${entry.id} on ${featureRequestId} — ${entry.title}`);
+    console.log(`  row id: ${existing.id}`);
+    console.log(`  level:  ${existing.level}`);
+    console.log(`Open /product-requests/${inputRequestId} to view it.`);
     return;
   }
 
   const kind =
     FeatureRequestActivityKind[entry.kind ?? "SLACK"] ?? FeatureRequestActivityKind.SLACK;
+  const level = ActivityLevel[entry.level ?? "INFO"] ?? ActivityLevel.INFO;
 
-  let sourceId: string | null = null;
-  if (entry.sourceLabel?.trim()) {
-    const source = await ensureSlackSource(requestId, entry.sourceLabel.trim());
-    sourceId = source.id;
+  const linkedSource = await resolveExistingSource(featureRequestId, kind);
+  const sourceId = linkedSource?.id ?? null;
+  if (!linkedSource) {
+    console.log(
+      `No linked source on ${featureRequestId}; activity will have no source link.`,
+    );
   }
 
   const occurredAt = entry.occurredAt ? new Date(entry.occurredAt) : new Date();
@@ -129,22 +181,28 @@ async function seedOneActivity(entry: ActivitySeed, requestId: string) {
 
   const activity = await prisma.featureRequestActivity.create({
     data: {
-      id: entry.id,
-      featureRequestId: requestId,
+      id: activityRowId,
+      featureRequestId,
       kind,
+      level,
       title: entry.title,
-      body: entry.body,
+      body: bodyFromEntry(entry),
       occurredAt,
       sourceId,
     },
   });
 
-  console.log("Activity created from JSON:");
-  console.log(`  id:       ${activity.id}`);
-  console.log(`  request:  ${requestId} (${request.title})`);
-  console.log(`  title:    ${activity.title}`);
-  console.log(`  kind:     ${activity.kind}`);
-  console.log(`Open /requests/${requestId} or a linked product-request — Activity should refresh.`);
+  console.log("Activity created:");
+  console.log(`  template:        ${entry.id}`);
+  console.log(`  row id:          ${activity.id}`);
+  console.log(`  featureRequest:  ${featureRequestId} (${resolved.title})`);
+  console.log(`  resolved via:    ${resolved.via}`);
+  console.log(`  level:           ${activity.level}`);
+  console.log(`  title:           ${activity.title}`);
+  if (linkedSource) {
+    console.log(`  source:          ${linkedSource.type} ${linkedSource.label}`);
+  }
+  console.log(`Open /product-requests/${inputRequestId} — Activity timeline should refresh.`);
 }
 
 async function main() {

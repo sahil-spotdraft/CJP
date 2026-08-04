@@ -12,6 +12,21 @@ const envSchema = z.object({
   OPENAI_MODEL: z.string().default("gpt-4o-mini"),
   OPENAI_BASE_URL: z.string().default("https://api.openai.com/v1"),
   CLASSIFIER_CONFIDENCE_THRESHOLD: z.coerce.number().min(0).max(1).default(0.7),
+  CURSOR_API_KEY: z.string().optional().default(""),
+  CURSOR_AGENT_ENABLED: z
+    .union([z.boolean(), z.string()])
+    .optional()
+    .transform((v) => {
+      if (typeof v === "boolean") return v;
+      if (v == null || v === "") return true;
+      return !["0", "false", "no", "off"].includes(String(v).toLowerCase());
+    }),
+  CURSOR_AGENT_MODEL: z.string().default("composer-2.5"),
+  SLACK_POLL_CHANNEL_ID: z.string().default("C0BMJFWC96J"),
+  SLACK_POLL_CHANNEL_NAME: z.string().default("cjp_customer_org"),
+  SLACK_POLL_INTERVAL_MS: z.coerce.number().default(45000),
+  SLACK_MCP_URL: z.string().default("https://mcp.slack.com/mcp"),
+  SLACK_MCP_CLIENT_ID: z.string().default("3660753192626.8903469228982"),
 });
 
 
@@ -35,4 +50,8 @@ export function hasSlack(): boolean {
 
 export function hasSlackSigningSecret(): boolean {
   return Boolean(getEnv().SLACK_SIGNING_SECRET);
+}
+
+export function hasCursor(): boolean {
+  return Boolean(getEnv().CURSOR_API_KEY);
 }

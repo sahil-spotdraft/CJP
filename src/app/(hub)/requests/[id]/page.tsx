@@ -83,6 +83,7 @@ export default async function RequestDetailPage({
         activities: request.activities.map((a) => ({
           id: a.id,
           kind: a.kind,
+          level: a.level,
           title: a.title,
           body: a.body,
           occurredAt: a.occurredAt.toISOString(),

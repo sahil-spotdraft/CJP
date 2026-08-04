@@ -8,6 +8,7 @@ import { Input, Label, Textarea } from "@/components/ui/input";
 
 type FeatureRequestSourceType = "SLACK" | "JIRA";
 type FeatureRequestActivityKind = "NOTE" | "SLACK" | "JIRA" | "STATUS" | "SYSTEM";
+type ActivityLevel = "INFO" | "SUCCESS" | "WARNING" | "CRITICAL";
 
 export type ActivitySource = {
   id: string;
@@ -20,6 +21,7 @@ export type ActivitySource = {
 export type ActivityItem = {
   id: string;
   kind: FeatureRequestActivityKind;
+  level: ActivityLevel;
   title: string;
   body: string | null;
   occurredAt: string;
@@ -35,6 +37,73 @@ const activityKinds: FeatureRequestActivityKind[] = [
   "STATUS",
   "SYSTEM",
 ];
+
+const activityLevels: ActivityLevel[] = ["INFO", "SUCCESS", "WARNING", "CRITICAL"];
+
+function levelLabel(level: ActivityLevel) {
+  switch (level) {
+    case "SUCCESS":
+      return "Healthy";
+    case "WARNING":
+      return "Concern";
+    case "CRITICAL":
+      return "Critical";
+    default:
+      return "Info";
+  }
+}
+
+function levelBadgeClass(level: ActivityLevel) {
+  switch (level) {
+    case "SUCCESS":
+      return "border-emerald-200 bg-emerald-50 text-emerald-800";
+    case "WARNING":
+      return "border-amber-300 bg-amber-100 text-amber-950";
+    case "CRITICAL":
+      return "border-red-300 bg-red-100 text-red-900";
+    default:
+      return "border-[var(--border)] bg-[var(--surface-2)] text-[var(--ink-muted)]";
+  }
+}
+
+function levelRowClass(level: ActivityLevel) {
+  switch (level) {
+    case "SUCCESS":
+      return "border border-l-[3px] border-emerald-200/80 border-l-emerald-500 bg-emerald-50/60";
+    case "WARNING":
+      return "border border-l-[3px] border-amber-200 border-l-amber-500 bg-amber-50/70";
+    case "CRITICAL":
+      return "border border-l-[3px] border-red-200 border-l-red-500 bg-red-50/70";
+    default:
+      return "border border-[var(--border)] bg-[var(--surface-2)]/70";
+  }
+}
+
+function levelAvatarClass(level: ActivityLevel) {
+  switch (level) {
+    case "SUCCESS":
+      return "bg-emerald-100 text-emerald-800";
+    case "WARNING":
+      return "bg-amber-100 text-amber-900";
+    case "CRITICAL":
+      return "bg-red-100 text-red-800";
+    default:
+      return "bg-[var(--accent-soft)] text-[var(--accent)]";
+  }
+}
+
+function levelMessageClass(level: ActivityLevel) {
+  switch (level) {
+    case "SUCCESS":
+      return "border-emerald-200/80";
+    case "WARNING":
+      return "border-amber-200";
+    case "CRITICAL":
+      return "border-red-200";
+    default:
+      return "border-[var(--border)]";
+  }
+}
 
 function toDateTimeLocalValue(iso?: string | null) {
   const d = iso ? new Date(iso) : new Date();
@@ -80,6 +149,7 @@ export function FeatureRequestActivitySection({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [kind, setKind] = useState<FeatureRequestActivityKind>("NOTE");
+  const [level, setLevel] = useState<ActivityLevel>("INFO");
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [sourceId, setSourceId] = useState("");
@@ -101,6 +171,7 @@ export function FeatureRequestActivitySection({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           kind,
+          level,
           title: title.trim(),
           body: body.trim() || undefined,
           sourceId: sourceId || null,
@@ -115,6 +186,7 @@ export function FeatureRequestActivitySection({
       setTitle("");
       setBody("");
       setSourceId("");
+      setLevel("INFO");
       setOccurredAt(toDateTimeLocalValue());
       router.refresh();
     } catch {
@@ -140,7 +212,7 @@ export function FeatureRequestActivitySection({
     <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6">
       <h2 className="font-[family-name:var(--font-display)] text-2xl">Activity</h2>
       <p className="mt-1 text-sm text-[var(--ink-muted)]">
-        Message-style updates from Slack, Jira, or the team — each with an occurred-at time.
+        Message-style updates from Slack, Jira, or the team. Level marks concern so you can scan feature health.
       </p>
 
       {error ? <p className="mt-3 text-sm text-[var(--danger)]">{error}</p> : null}
@@ -148,15 +220,16 @@ export function FeatureRequestActivitySection({
       <div className="mt-4 space-y-3">
         {activities.map((item) => {
           const authorLabel = item.author?.name || item.author?.email || "System";
+          const level = item.level ?? "INFO";
           return (
             <article
               key={item.id}
-              className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)]/70 p-4"
+              className={`rounded-2xl border p-4 ${levelRowClass(level)}`}
             >
               <div className="flex items-start gap-3">
                 <div
                   aria-hidden
-                  className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--accent-soft)] text-xs font-semibold text-[var(--accent)]"
+                  className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${levelAvatarClass(level)}`}
                 >
                   {authorLabel.slice(0, 2).toUpperCase()}
                 </div>
@@ -164,6 +237,11 @@ export function FeatureRequestActivitySection({
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                     <span className="text-sm font-semibold text-[var(--ink)]">{authorLabel}</span>
                     <Badge>{item.kind}</Badge>
+                    <span
+                      className={`inline-flex items-center rounded-md border px-1.5 py-0.5 text-[10px] font-semibold tracking-wide ${levelBadgeClass(level)}`}
+                    >
+                      {levelLabel(level)}
+                    </span>
                     {item.source ? (
                       <a
                         href={item.source.url}
@@ -182,7 +260,9 @@ export function FeatureRequestActivitySection({
                       {formatOccurredAt(item.occurredAt)}
                     </time>
                   </div>
-                  <div className="mt-2 rounded-xl border border-[var(--border)] bg-white px-3.5 py-2.5 shadow-sm">
+                  <div
+                    className={`mt-2 rounded-xl border bg-white px-3.5 py-2.5 shadow-sm ${levelMessageClass(level)}`}
+                  >
                     <p className="text-sm font-medium text-[var(--ink)]">{item.title}</p>
                     {item.body ? (
                       <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-[var(--ink-muted)]">
@@ -228,6 +308,21 @@ export function FeatureRequestActivitySection({
             </select>
           </div>
           <div>
+            <Label htmlFor="activityLevel">Concern</Label>
+            <select
+              id="activityLevel"
+              className="w-full rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm"
+              value={level}
+              onChange={(e) => setLevel(e.target.value as ActivityLevel)}
+            >
+              {activityLevels.map((l) => (
+                <option key={l} value={l}>
+                  {levelLabel(l)}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
             <Label htmlFor="activityOccurredAt">Occurred at</Label>
             <Input
               id="activityOccurredAt"
@@ -252,7 +347,7 @@ export function FeatureRequestActivitySection({
               ))}
             </select>
           </div>
-          <div>
+          <div className="md:col-span-2">
             <Label htmlFor="activityTitle">Message</Label>
             <Input
               id="activityTitle"

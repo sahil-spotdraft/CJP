@@ -101,6 +101,7 @@ export default async function FeatureRequestDetailPage({
                 activities: linkedFeature.activities.map((a) => ({
                   id: a.id,
                   kind: a.kind,
+                  level: a.level,
                   title: a.title,
                   body: a.body,
                   occurredAt: a.occurredAt.toISOString(),

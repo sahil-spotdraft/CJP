@@ -18,7 +18,49 @@ Collect feature requests from customer/support Slack channels with AI detection,
 - Slack Events API
 - OpenAI-compatible classifier (optional heuristic fallback)
 
-Requires **Node 20+** for local development (see `.nvmrc`).
+Requires **Node 22.13+** for local development (see `.nvmrc`) — needed for `@cursor/sdk`.
+
+## Cursor agent (Slack → Feature Hub)
+
+When a Slack message hits `/api/slack/events`, Moonshot spawns a **Cursor SDK** local agent with tools that write to Postgres (`ensure_channel_mapped`, `upsert_pending_signal`, etc.).
+
+```env
+CURSOR_API_KEY=crsr_...
+CURSOR_AGENT_ENABLED=true
+CURSOR_AGENT_MODEL=composer-2.5
+```
+
+Test without Slack Events:
+
+```bash
+npm run agent:test -- "We need Okta SSO for admins"
+# or authenticated POST /api/cursor/process-slack
+```
+
+### Slack poller (detect + notify)
+
+```bash
+nvm use 22
+npm run slack:poll:once   # one cycle
+npm run slack:poll        # loop every 45s
+```
+
+**How Slack is read (in order):**
+1. Slack Web API (`SLACK_BOT_TOKEN`) — preferred when token is valid
+2. MCP cache file `.data/slack-mcp-cache.json` — use when token is expired (Cursor Slack MCP still works)
+
+Refresh the cache from Cursor (after reading `#cjp_customer_org`):
+
+```bash
+npm run slack:mcp-sync -- '{"messages":[{"ts":"...","text":"...","user":"..."}]}'
+# or POST /api/slack/mcp-cache with the same JSON
+```
+
+On each new feature-like message the poller:
+- upserts a pending FeatureSignal
+- prints **NEW FEATURE REQUEST DETECTED**
+- appends `.data/notifications.jsonl`
+- advances `.data/slack-poll-state.json`
 
 ## Quick start (Docker)
 
