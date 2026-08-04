@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Textarea } from "@/components/ui/input";
+import { formatDateTime } from "@/lib/format";
 
 type FeatureRequestSourceType = "SLACK" | "JIRA";
 type FeatureRequestActivityKind = "NOTE" | "SLACK" | "JIRA" | "STATUS" | "SYSTEM";
