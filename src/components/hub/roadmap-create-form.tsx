@@ -31,7 +31,7 @@ export function RoadmapCreateForm() {
   return (
     <form
       onSubmit={onSubmit}
-      className="grid gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 md:grid-cols-2"
+      className="grid gap-3 rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] p-5 md:grid-cols-2"
     >
       <div>
         <Label htmlFor="title">Title</Label>

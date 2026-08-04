@@ -7,12 +7,16 @@ export async function embedText(text: string): Promise<number[] | null> {
   const input = text.replace(/\s+/g, " ").trim().slice(0, 8000);
   if (!input) return null;
 
-  const response = await client.embeddings.create({
-    model: "text-embedding-3-small",
-    input,
-  });
-
-  return response.data[0]?.embedding ?? null;
+  try {
+    const response = await client.embeddings.create({
+      model: "text-embedding-3-small",
+      input,
+    });
+    return response.data[0]?.embedding ?? null;
+  } catch (error) {
+    console.error("Embedding request failed; continuing without vectors", error);
+    return null;
+  }
 }
 
 export function asNumberArray(value: unknown): number[] | null {

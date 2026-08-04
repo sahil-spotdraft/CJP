@@ -160,19 +160,24 @@ export function SuggestionSidePanel({
         className="absolute inset-0 bg-[var(--ink)]/25"
         onClick={onClose}
       />
-      <aside className="relative flex h-full w-full max-w-lg flex-col border-l border-[var(--border)] bg-[var(--surface)] shadow-2xl">
+      <aside className="relative flex h-full w-full max-w-lg flex-col border-l border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-lg)]">
         <div className="flex items-start justify-between gap-3 border-b border-[var(--border)] px-5 py-4">
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-[var(--ink-muted)]">
+            <p className="text-label">
               Suggestion
             </p>
-            <h2 className="mt-1 font-[family-name:var(--font-display)] text-xl text-[var(--ink)]">
+            <h2 className="mt-1 font-display text-xl text-[var(--ink)]">
               {detail?.title ?? (loading ? "Loading…" : "Suggestion")}
             </h2>
           </div>
-          <Button variant="ghost" aria-label="Close" onClick={onClose} className="px-2">
-            <X className="h-4 w-4" />
-          </Button>
+          <button
+            type="button"
+            aria-label="Close"
+            onClick={onClose}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-md)] text-[var(--ink-muted)] transition hover:bg-[var(--surface-2)] hover:text-[var(--ink)]"
+          >
+            <X className="h-4 w-4" strokeWidth={2} />
+          </button>
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-4">
@@ -195,7 +200,7 @@ export function SuggestionSidePanel({
                 <p className="text-sm leading-relaxed text-[var(--ink)]">{detail.summary}</p>
                 {detail.rawText ? (
                   <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
-                    <p className="mb-1 text-xs font-medium uppercase tracking-wide text-[var(--ink-muted)]">
+                    <p className="mb-1 text-label">
                       Original Slack message
                     </p>
                     <p className="whitespace-pre-wrap text-sm leading-relaxed text-[var(--ink)]">
@@ -298,14 +303,14 @@ export function SuggestionSidePanel({
                                     </span>
                                   ) : (
                                     match.featureRequest.workspaces.map((ws) => (
-                                      <Badge key={ws.id} className="bg-white">
+                                      <Badge key={ws.id} className="bg-[var(--surface)]">
                                         {ws.name}
                                       </Badge>
                                     ))
                                   )}
                                 </div>
                               </div>
-                              <span className="shrink-0 rounded-md bg-white px-2 py-1 text-sm font-semibold text-[var(--accent)]">
+                              <span className="shrink-0 rounded-md bg-[var(--surface)] px-2 py-1 text-sm font-semibold text-[var(--accent)]">
                                 {match.matchPercent}%
                               </span>
                             </div>

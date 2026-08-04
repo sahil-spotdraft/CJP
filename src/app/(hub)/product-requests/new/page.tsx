@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { listCsOwners } from "@/lib/services/cs-owner";
 import { ProductRequestCreateForm } from "@/components/hub/product-request-create-form";
+import { PageHeader } from "@/components/ui/page-header";
 
 export const dynamic = "force-dynamic";
 
@@ -15,15 +16,14 @@ export default async function CreateFeatureRequestPage() {
   return (
     <div className="space-y-6">
       <div>
-        <Link href="/" className="text-sm text-[var(--accent)] underline">
+        <Link href="/" className="text-sm font-medium text-[var(--accent)] hover:underline">
           ← Back to feature requests
         </Link>
-        <h1 className="mt-3 font-[family-name:var(--font-display)] text-3xl">
-          Create feature request
-        </h1>
-        <p className="mt-1 text-[var(--ink-muted)]">
-          Capture a CLM ask from a workspace. Consolidation and CS owner are both required.
-        </p>
+        <PageHeader
+          className="mt-3"
+          title="Create feature request"
+          description="Capture a CLM ask from a workspace. Consolidation and CS owner are both required."
+        />
       </div>
 
       <ProductRequestCreateForm

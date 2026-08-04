@@ -74,7 +74,7 @@ function ConsolidatePicker({
         <button
           type="button"
           onClick={() => setMode("existing")}
-          className={`rounded px-2 py-1 text-xs ${mode === "existing" ? "bg-[var(--accent)] text-white" : "bg-white"}`}
+          className={`rounded px-2 py-1 text-xs ${mode === "existing" ? "bg-[var(--accent)] text-white" : "bg-[var(--surface)]"}`}
           disabled={!consolidations.length}
         >
           Existing
@@ -82,14 +82,14 @@ function ConsolidatePicker({
         <button
           type="button"
           onClick={() => setMode("new")}
-          className={`rounded px-2 py-1 text-xs ${mode === "new" ? "bg-[var(--accent)] text-white" : "bg-white"}`}
+          className={`rounded px-2 py-1 text-xs ${mode === "new" ? "bg-[var(--accent)] text-white" : "bg-[var(--surface)]"}`}
         >
           New
         </button>
       </div>
       {mode === "existing" ? (
         <select
-          className="rounded-lg border border-[var(--border)] bg-white px-2 py-1.5 text-sm"
+          className="control w-auto px-2 py-1.5"
           value={existingId}
           onChange={(e) => setExistingId(e.target.value)}
         >
@@ -150,7 +150,7 @@ function ProductRequestCard({
   }
 
   return (
-    <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+    <div className="rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <Link href={`/product-requests/${request.id}`} className="max-w-2xl font-medium text-[var(--accent)] underline-offset-2 hover:underline">
           {request.ask}
@@ -177,7 +177,7 @@ function ProductRequestCard({
             Consolidation: {request.consolidation.name}
           </Link>
         ) : (
-          <Badge className="bg-amber-100 text-amber-900">Unconsolidated</Badge>
+          <Badge className="bg-[var(--warning-soft)] text-[var(--warning)]">Unconsolidated</Badge>
         )}
         <button
           type="button"
@@ -221,7 +221,7 @@ function ProductRequestCard({
 
       <div className="mt-4 flex flex-wrap gap-3">
         <select
-          className="rounded-lg border border-[var(--border)] bg-white px-2 py-1.5 text-sm"
+          className="control w-auto px-2 py-1.5"
           value={status}
           disabled={busy}
           onChange={(e) => {
@@ -237,7 +237,7 @@ function ProductRequestCard({
           ))}
         </select>
         <select
-          className="rounded-lg border border-[var(--border)] bg-white px-2 py-1.5 text-sm"
+          className="control w-auto px-2 py-1.5"
           value={priority}
           disabled={busy}
           onChange={(e) => {
@@ -266,7 +266,7 @@ export function ProductRequestsTable({
 }>) {
   if (requests.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-[var(--border)] p-10 text-center text-[var(--ink-muted)]">
+      <div className="rounded-[var(--radius-xl)] border border-dashed border-[var(--border)] p-10 text-center text-[var(--ink-muted)]">
         No feature requests yet. Create one from Home.
       </div>
     );

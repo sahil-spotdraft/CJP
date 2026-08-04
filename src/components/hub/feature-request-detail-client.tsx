@@ -248,9 +248,9 @@ export function FeatureRequestDetailClient({
 
   if (editing) {
     return (
-      <div className="space-y-5 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6">
+      <div className="space-y-5 rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="font-[family-name:var(--font-display)] text-2xl">Edit feature request</h2>
+          <h2 className="font-display text-2xl">Edit feature request</h2>
           <div className="flex gap-2">
             <Button type="button" variant="ghost" onClick={cancelEdit} disabled={busy}>
               Cancel
@@ -274,7 +274,7 @@ export function FeatureRequestDetailClient({
                 {workspaceIds.length} selected · at least one required
               </span>
             </div>
-            <div className="grid max-h-56 gap-2 overflow-y-auto rounded-xl border border-[var(--border)] bg-white p-3 sm:grid-cols-2">
+            <div className="grid max-h-56 gap-2 overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 sm:grid-cols-2">
               {orgs.map((org) => {
                 const checked = workspaceIds.includes(org.id);
                 const disableUncheck = checked && workspaceIds.length === 1;
@@ -306,7 +306,7 @@ export function FeatureRequestDetailClient({
             <Label htmlFor="consolidationId">Consolidation</Label>
             <select
               id="consolidationId"
-              className="w-full rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm"
+              className="control"
               value={consolidationId}
               onChange={(e) => setConsolidationId(e.target.value)}
             >
@@ -323,7 +323,7 @@ export function FeatureRequestDetailClient({
             <Label htmlFor="csOwnerId">CS Owner</Label>
             <select
               id="csOwnerId"
-              className="w-full rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm"
+              className="control"
               value={csOwnerId}
               onChange={(e) => setCsOwnerId(e.target.value)}
             >
@@ -343,7 +343,7 @@ export function FeatureRequestDetailClient({
             <Label htmlFor="priority">Priority</Label>
             <select
               id="priority"
-              className="w-full rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm"
+              className="control"
               value={priority}
               onChange={(e) => setPriority(e.target.value)}
             >
@@ -359,7 +359,7 @@ export function FeatureRequestDetailClient({
             <Label htmlFor="status">Status</Label>
             <select
               id="status"
-              className="w-full rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm"
+              className="control"
               value={status}
               onChange={(e) => setStatus(e.target.value as ClmRequestStatus)}
             >
@@ -387,11 +387,11 @@ export function FeatureRequestDetailClient({
 
   return (
     <div className="space-y-6">
-      <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6">
+      <div className="rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-3xl">
-            <p className="text-xs uppercase tracking-wide text-[var(--ink-muted)]">Request / Ask</p>
-            <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl">{detail.ask}</h1>
+            <p className="text-label">Request / Ask</p>
+            <h1 className="mt-1 font-display text-3xl">{detail.ask}</h1>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <ClmStatusBadge status={detail.status} />
@@ -416,7 +416,7 @@ export function FeatureRequestDetailClient({
           />
           <Field label="Timeline" value={detail.timeline || "—"} />
           <div>
-            <p className="text-xs uppercase tracking-wide text-[var(--ink-muted)]">Consolidation</p>
+            <p className="text-label">Consolidation</p>
             {detail.consolidation ? (
               <Link
                 href={`/consolidation/${detail.consolidation.id}`}
@@ -429,7 +429,7 @@ export function FeatureRequestDetailClient({
             )}
           </div>
           <div className="sm:col-span-2 lg:col-span-3">
-            <p className="text-xs uppercase tracking-wide text-[var(--ink-muted)]">Linked feature request</p>
+            <p className="text-label">Linked feature request</p>
             {linkedFeature || detail.featureRequest ? (
               <Link
                 href={`/requests/${(linkedFeature ?? detail.featureRequest)!.id}`}
@@ -443,10 +443,10 @@ export function FeatureRequestDetailClient({
           </div>
         </div>
 
-        <section className="mt-8 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)]/60 p-5">
+        <section className="mt-8 rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface-2)]/60 p-5">
           <div className="flex flex-wrap items-end justify-between gap-2">
             <div>
-              <h2 className="font-[family-name:var(--font-display)] text-xl">
+              <h2 className="font-display text-xl">
                 Requested by customers
               </h2>
               <p className="mt-1 text-sm text-[var(--ink-muted)]">
@@ -465,10 +465,10 @@ export function FeatureRequestDetailClient({
               <div
                 key={customer.id}
                 className={cn(
-                  "rounded-xl border bg-white px-4 py-3",
+                  "rounded-[var(--radius-lg)] bg-[var(--surface)] px-4 py-3 ring-1",
                   customer.id === detail.wsId
-                    ? "border-[var(--accent)] shadow-sm"
-                    : "border-[var(--border)]",
+                    ? "ring-[var(--accent)]"
+                    : "ring-[var(--border)]",
                 )}
               >
                 <p className="font-medium text-[var(--ink)]">{customer.name}</p>
@@ -496,10 +496,10 @@ export function FeatureRequestDetailClient({
 
       {linkedFeature ? (
         <>
-          <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6">
+          <section className="rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] p-6">
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
-                <h2 className="font-[family-name:var(--font-display)] text-2xl">Due date</h2>
+                <h2 className="font-display text-2xl">Due date</h2>
                 <p className="mt-1 text-sm text-[var(--ink-muted)]">
                   Target date on the linked feature request
                 </p>
@@ -521,8 +521,8 @@ export function FeatureRequestDetailClient({
             </div>
           </section>
 
-          <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6">
-            <h2 className="font-[family-name:var(--font-display)] text-2xl">Sources</h2>
+          <section className="rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] p-6">
+            <h2 className="font-display text-2xl">Sources</h2>
             <p className="mt-1 text-sm text-[var(--ink-muted)]">
               Slack channels or Jira tickets linked to this feature.
             </p>
@@ -562,7 +562,7 @@ export function FeatureRequestDetailClient({
                 <Label htmlFor="sourceType">Type</Label>
                 <select
                   id="sourceType"
-                  className="w-full rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm"
+                  className="control"
                   value={sourceType}
                   onChange={(e) => setSourceType(e.target.value as FeatureRequestSourceType)}
                 >
@@ -610,8 +610,8 @@ export function FeatureRequestDetailClient({
           />
         </>
       ) : (
-        <section className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface)] p-6">
-          <h2 className="font-[family-name:var(--font-display)] text-2xl">
+        <section className="rounded-[var(--radius-xl)] border border-dashed border-[var(--border)] bg-[var(--surface)] p-6">
+          <h2 className="font-display text-2xl">
             Due date, sources & activity
           </h2>
           <p className="mt-2 text-sm text-[var(--ink-muted)]">
@@ -627,7 +627,7 @@ export function FeatureRequestDetailClient({
 function Field({ label, value }: Readonly<{ label: string; value: string }>) {
   return (
     <div>
-      <p className="text-xs uppercase tracking-wide text-[var(--ink-muted)]">{label}</p>
+      <p className="text-label">{label}</p>
       <p className="mt-1 font-medium">{value}</p>
     </div>
   );
@@ -636,7 +636,7 @@ function Field({ label, value }: Readonly<{ label: string; value: string }>) {
 function NoteBlock({ title, body }: Readonly<{ title: string; body: string | null }>) {
   return (
     <div className="rounded-xl bg-[var(--surface-2)] p-4">
-      <p className="text-xs uppercase tracking-wide text-[var(--ink-muted)]">{title}</p>
+      <p className="text-label">{title}</p>
       <p className="mt-2 whitespace-pre-wrap text-sm">{body || "—"}</p>
     </div>
   );

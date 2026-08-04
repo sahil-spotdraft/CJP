@@ -23,15 +23,15 @@ export default async function ConsolidationDetailPage({
 
   return (
     <div className="space-y-6">
-      <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6">
+      <div className="rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="font-[family-name:var(--font-display)] text-3xl">{detail.name}</h1>
+            <h1 className="font-display text-3xl">{detail.name}</h1>
             {detail.feature ? <p className="mt-1 text-[var(--ink-muted)]">{detail.feature}</p> : null}
             {detail.notes ? <p className="mt-2 max-w-2xl text-sm text-[var(--ink-muted)]">{detail.notes}</p> : null}
           </div>
           <div className="text-right">
-            <p className="text-xs uppercase tracking-wide text-[var(--ink-muted)]">SUM of Account ARR</p>
+            <p className="text-label">SUM of Account ARR</p>
             <p className="text-2xl font-semibold">{formatArr(detail.arr)}</p>
           </div>
         </div>
@@ -57,9 +57,9 @@ export default async function ConsolidationDetailPage({
       </div>
 
       <section className="space-y-3">
-        <h2 className="font-[family-name:var(--font-display)] text-2xl">Feature requests</h2>
+        <h2 className="font-display text-2xl">Feature requests</h2>
         {detail.requests.map((request) => (
-          <div key={request.id} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
+          <div key={request.id} className="rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] p-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <p className="max-w-2xl font-medium">{request.ask}</p>
               <div className="flex items-center gap-2">

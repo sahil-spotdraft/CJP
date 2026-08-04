@@ -5,13 +5,10 @@ import { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, Stat } from "@/components/ui/card";
+import { PageHeader } from "@/components/ui/page-header";
+import { money } from "@/lib/format";
 import type { RetentionDashboard as RetentionData } from "@/lib/services/retention";
-
-function money(n: number) {
-  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1000) return `$${Math.round(n / 1000)}K`;
-  return `$${Math.round(n).toLocaleString()}`;
-}
 
 function formatDate(value: string | null) {
   if (!value) return "—";
@@ -95,53 +92,46 @@ export function RetentionDashboard({ data }: Readonly<{ data: RetentionData }>) 
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-[0.16em] text-[var(--accent)]">
-            CS retention
-          </p>
-          <h1 className="font-[family-name:var(--font-display)] text-3xl">
-            Renewal & silent-churn radar
-          </h1>
-          <p className="mt-1 max-w-3xl text-sm text-[var(--ink-muted)]">
-            Surfaces contracts nearing expiry (30/60/90) and accounts that have gone
-            dark — then lets CSMs alert Slack and trigger one-click outreach nudges.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <label className="text-sm text-[var(--ink-muted)]">
-            CS Owner
-            <select
-              className="ml-2 rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm"
-              value={csOwner}
-              onChange={(e) => updateParams({ csOwner: e.target.value })}
-            >
-              <option value="">All owners</option>
-              {data.csOwners.map((owner) => (
-                <option key={owner} value={owner}>
-                  {owner}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="text-sm text-[var(--ink-muted)]">
-            Dark after
-            <select
-              className="ml-2 rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm"
-              value={darkDays}
-              onChange={(e) => updateParams({ darkDays: e.target.value })}
-            >
-              {[14, 30, 45, 60].map((days) => (
-                <option key={days} value={days}>
-                  {days} days
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="CS retention"
+        title="Renewal & silent-churn radar"
+        description="Surfaces contracts nearing expiry (30/60/90) and accounts that have gone dark — then lets CSMs alert Slack and trigger one-click outreach nudges."
+        actions={
+          <>
+            <label className="text-sm text-[var(--ink-muted)]">
+              CS Owner
+              <select
+                className="control ml-2 w-auto"
+                value={csOwner}
+                onChange={(e) => updateParams({ csOwner: e.target.value })}
+              >
+                <option value="">All owners</option>
+                {data.csOwners.map((owner) => (
+                  <option key={owner} value={owner}>
+                    {owner}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="text-sm text-[var(--ink-muted)]">
+              Dark after
+              <select
+                className="control ml-2 w-auto"
+                value={darkDays}
+                onChange={(e) => updateParams({ darkDays: e.target.value })}
+              >
+                {[14, 30, 45, 60].map((days) => (
+                  <option key={days} value={days}>
+                    {days} days
+                  </option>
+                ))}
+              </select>
+            </label>
+          </>
+        }
+      />
 
-      <section className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-950">
+      <section className="rounded-[var(--radius-xl)] border border-[var(--warning)]/25 bg-[var(--warning-soft)] px-5 py-4 text-sm text-[var(--warning)]">
         <p className="font-semibold">{data.story.title}</p>
         <p className="mt-1">{data.story.body}</p>
       </section>
@@ -307,10 +297,10 @@ export function RetentionDashboard({ data }: Readonly<{ data: RetentionData }>) 
                         <Badge
                           className={
                             account.renewalBand === "HIGH"
-                              ? "bg-emerald-100 text-emerald-900"
+                              ? "bg-[var(--success-soft)] text-[var(--success)]"
                               : account.renewalBand === "MEDIUM"
-                                ? "bg-amber-100 text-amber-900"
-                                : "bg-rose-100 text-rose-900"
+                                ? "bg-[var(--warning-soft)] text-[var(--warning)]"
+                                : "bg-[var(--danger-soft)] text-[var(--danger)]"
                           }
                         >
                           {account.renewalBand === "HIGH"
@@ -349,12 +339,12 @@ export function RetentionDashboard({ data }: Readonly<{ data: RetentionData }>) 
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {selected.expiryWindow ? (
-                    <Badge className="bg-amber-100 text-amber-900">
+                    <Badge className="bg-[var(--warning-soft)] text-[var(--warning)]">
                       Expiry {selected.expiryWindow}d
                     </Badge>
                   ) : null}
                   {selected.isDark ? (
-                    <Badge className="bg-rose-100 text-rose-900">Dark account</Badge>
+                    <Badge className="bg-[var(--danger-soft)] text-[var(--danger)]">Dark account</Badge>
                   ) : null}
                   {!selected.risks.length ? (
                     <Badge>Healthy right now</Badge>
@@ -467,37 +457,6 @@ export function RetentionDashboard({ data }: Readonly<{ data: RetentionData }>) 
   );
 }
 
-function Stat({
-  label,
-  value,
-  hint,
-  warn,
-}: {
-  label: string;
-  value: string;
-  hint?: string;
-  warn?: boolean;
-}) {
-  return (
-    <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
-      <p className="text-xs uppercase tracking-wide text-[var(--ink-muted)]">{label}</p>
-      <p className={`mt-1 text-3xl font-semibold ${warn ? "text-amber-800" : ""}`}>
-        {value}
-      </p>
-      {hint ? <p className="mt-1 text-xs text-[var(--ink-muted)]">{hint}</p> : null}
-    </div>
-  );
-}
-
-function Card({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
-      <h2 className="font-[family-name:var(--font-display)] text-xl">{title}</h2>
-      <div className="mt-4">{children}</div>
-    </section>
-  );
-}
-
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-start justify-between gap-3">
@@ -534,7 +493,7 @@ function ExpiryBucket({
                 className={`w-full rounded-lg px-2 py-2 text-left text-sm transition ${
                   selectedId === row.id
                     ? "bg-[var(--accent-soft)] text-[var(--accent)]"
-                    : "hover:bg-white"
+                    : "hover:bg-[var(--surface)]"
                 }`}
               >
                 <span className="font-medium">{row.name}</span>

@@ -13,6 +13,11 @@ export async function GET(
   const signal = await getSignalForTriage(id);
   if (!signal) return jsonError("Signal not found", 404);
 
-  const similar = await findSimilarFeatureRequests(id);
-  return NextResponse.json({ signal, similar });
+  try {
+    const similar = await findSimilarFeatureRequests(id);
+    return NextResponse.json({ signal, similar });
+  } catch (error) {
+    console.error("Similar requests lookup failed", error);
+    return NextResponse.json({ signal, similar: [] });
+  }
 }
