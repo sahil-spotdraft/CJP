@@ -22,7 +22,7 @@ export default async function RequestsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-[family-name:var(--font-display)] text-3xl">Feature requests</h1>
+        <h1 className="font-display text-3xl">Feature requests</h1>
         <p className="mt-1 text-[var(--ink-muted)]">
           Canonical requests aggregated across customer workspaces.
         </p>
@@ -43,7 +43,7 @@ export default async function RequestsPage() {
             <Link
               key={request.id}
               href={`/requests/${request.id}`}
-              className="block rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 transition hover:border-[var(--accent)]"
+              className="block rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] p-5 transition hover:border-[var(--accent)]"
             >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
@@ -70,7 +70,7 @@ export default async function RequestsPage() {
           );
         })}
         {requests.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-[var(--border)] p-10 text-center text-[var(--ink-muted)]">
+          <div className="rounded-[var(--radius-xl)] border border-dashed border-[var(--border)] p-10 text-center text-[var(--ink-muted)]">
             No feature requests yet. Triage a Slack signal to create one.
           </div>
         ) : null}

@@ -5,6 +5,13 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { EllipsisVertical } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Card, Stat } from "@/components/ui/card";
+import { PageHeader } from "@/components/ui/page-header";
+import {
+  priorityChartColors,
+  statusChartColors,
+} from "@/components/hub/status-badge";
+import { money, readableLabel } from "@/lib/format";
 
 type RequestDetail = {
   id: string;
@@ -163,14 +170,222 @@ type MetricInsight = {
   rowLabel: string;
 };
 
-function money(n: number) {
-  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1000) return `$${Math.round(n / 1000)}K`;
-  return `$${Math.round(n).toLocaleString()}`;
-}
-
 function pctLabel(n: number) {
   return `${Math.round(n)}%`;
+}
+
+const LENS_COPY: Record<MetricKey, string> = {
+  requests: "Showing the full backlog for this lens",
+  coverage: "Lens: consolidations already In Roadmap",
+  opportunity: "Lens: multi-account gaps not on roadmap (≥3 accounts)",
+  risk: "Lens: Critical requests still needing a Product decision",
+  triage: "Lens: requests still in New",
+  uncovered: "Lens: requests not covered by roadmap consolidations",
+  potential: "Lens: roadmap consolidations plus current opportunity gaps",
+  voice: "Lens: full backlog — compare weighted voice vs unique ARR",
+};
+
+function rebuildFunnel(rows: RequestDetail[]) {
+  const order = [
+    "NEW",
+    "SHARED_WITH_PRODUCT",
+    "DISCUSSED_WITH_PRODUCT",
+    "IN_ROADMAP",
+    "CLOSED",
+    "PLANNED",
+    "IN_PROGRESS",
+    "SHIPPED",
+    "DECLINED",
+  ];
+  const buckets = new Map<
+    string,
+    { count: number; orgs: Map<string, number> }
+  >();
+  for (const row of rows) {
+    const bucket = buckets.get(row.status) ?? { count: 0, orgs: new Map() };
+    bucket.count += 1;
+    bucket.orgs.set(row.account, row.arr);
+    buckets.set(row.status, bucket);
+  }
+  return order.flatMap((status) => {
+    const bucket = buckets.get(status);
+    if (!bucket) return [];
+    const uniqueArr = [...bucket.orgs.values()].reduce((a, b) => a + b, 0);
+    return [
+      {
+        status,
+        count: bucket.count,
+        uniqueArr,
+        weightedArr: uniqueArr,
+        pct: rows.length ? (bucket.count / rows.length) * 100 : 0,
+      },
+    ];
+  });
+}
+
+function rebuildPriorityMix(rows: RequestDetail[]) {
+  const order = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "NOT_SET"];
+  const counts = new Map<string, number>();
+  for (const row of rows) {
+    counts.set(row.priority, (counts.get(row.priority) ?? 0) + 1);
+  }
+  return order
+    .map((priority) => ({ priority, count: counts.get(priority) ?? 0 }))
+    .filter((item) => item.count > 0);
+}
+
+function rebuildAccountHeat(rows: RequestDetail[]) {
+  const map = new Map<
+    string,
+    { name: string; arr: number; asks: number; critical: number; neu: number }
+  >();
+  for (const row of rows) {
+    const account = map.get(row.account) ?? {
+      name: row.account,
+      arr: row.arr,
+      asks: 0,
+      critical: 0,
+      neu: 0,
+    };
+    account.asks += 1;
+    if (row.priority === "CRITICAL") account.critical += 1;
+    if (row.status === "NEW") account.neu += 1;
+    map.set(row.account, account);
+  }
+  return [...map.values()]
+    .map((account) => ({
+      ...account,
+      heat: account.asks * account.arr,
+    }))
+    .sort((a, b) => b.heat - a.heat || b.arr - a.arr)
+    .slice(0, 8);
+}
+
+type MetricLensView = {
+  label: string | null;
+  rows: RequestDetail[];
+  funnel: AnalyticsData["funnel"];
+  priorityMix: AnalyticsData["priorityMix"];
+  gapBoard: AnalyticsData["gapBoard"];
+  themeScores: AnalyticsData["themeScores"];
+  emergingGaps: AnalyticsData["emergingGaps"];
+  roadmapThemes: AnalyticsData["roadmapThemes"];
+  criticalNew: AnalyticsData["criticalNew"];
+  accountHeat: AnalyticsData["accountHeat"];
+  epicClusters: AnalyticsData["epicClusters"];
+};
+
+function buildMetricLens(
+  data: AnalyticsData,
+  metric: MetricInsight | null,
+): MetricLensView {
+  if (!metric) {
+    return {
+      label: null,
+      rows: data.requestDetails,
+      funnel: data.funnel,
+      priorityMix: data.priorityMix,
+      gapBoard: data.gapBoard,
+      themeScores: data.themeScores,
+      emergingGaps: data.emergingGaps,
+      roadmapThemes: data.roadmapThemes,
+      criticalNew: data.criticalNew,
+      accountHeat: data.accountHeat,
+      epicClusters: data.epicClusters,
+    };
+  }
+
+  const rows = metric.rows;
+  const consolidations = new Set(rows.map((row) => row.consolidation));
+  const rowIds = new Set(rows.map((row) => row.id));
+
+  const gapBoard =
+    metric.key === "opportunity" || metric.key === "potential"
+      ? data.gapBoard
+      : metric.key === "coverage"
+        ? []
+        : data.gapBoard.filter((gap) => consolidations.has(gap.theme));
+
+  const roadmapThemes =
+    metric.key === "coverage" || metric.key === "potential"
+      ? data.roadmapThemes
+      : metric.key === "opportunity" || metric.key === "uncovered"
+        ? []
+        : data.roadmapThemes.filter((theme) => consolidations.has(theme.theme));
+
+  const themeScores =
+    metric.key === "opportunity"
+      ? data.themeScores.filter((theme) => !theme.inRoadmap)
+      : metric.key === "coverage"
+        ? data.themeScores.filter((theme) => theme.inRoadmap)
+        : data.themeScores.filter((theme) => consolidations.has(theme.theme));
+
+  const emergingGaps =
+    metric.key === "opportunity" || metric.key === "uncovered"
+      ? data.emergingGaps
+      : data.emergingGaps.filter((gap) => consolidations.has(gap.theme));
+
+  return {
+    label: LENS_COPY[metric.key],
+    rows,
+    funnel: rebuildFunnel(rows),
+    priorityMix: rebuildPriorityMix(rows),
+    gapBoard,
+    themeScores: themeScores.slice(0, 6),
+    emergingGaps,
+    roadmapThemes,
+    criticalNew:
+      metric.key === "risk"
+        ? data.criticalNew
+        : data.criticalNew.filter((row) => rowIds.has(row.id)),
+    accountHeat: rebuildAccountHeat(rows),
+    epicClusters: (() => {
+      const clusters = [
+        {
+          epic: "Notifications & Digests",
+          match: /notif|digest|email|reminder|signature/i,
+        },
+        {
+          epic: "Offboarding & Ownership",
+          match: /bulk update|ooo|ownership|deactiv/i,
+        },
+        {
+          epic: "Contract Families / Bundles",
+          match: /bundle|link related|relationship|packet|contract/i,
+        },
+        {
+          epic: "Governance & Access",
+          match: /access control|permission|scim|tag management|legal user/i,
+        },
+        { epic: "Express / Campaign UX", match: /express|campaign/i },
+        { epic: "Sub-status / Custom Status", match: /status|sub.?status/i },
+      ];
+      return clusters
+        .map((cluster) => {
+          const matched = rows.filter((row) =>
+            cluster.match.test(row.consolidation),
+          );
+          if (!matched.length) return null;
+          const accountArr = new Map(
+            matched.map((row) => [row.account, row.arr] as const),
+          );
+          const accounts = accountArr.size;
+          const unique = [...accountArr.values()].reduce((a, b) => a + b, 0);
+          return {
+            epic: cluster.epic,
+            themes: new Set(matched.map((row) => row.consolidation)).size,
+            asks: matched.length,
+            accounts,
+            uniqueArr: unique,
+            prize: accounts * unique,
+          };
+        })
+        .filter(
+          (epic): epic is AnalyticsData["epicClusters"][number] => epic != null,
+        )
+        .sort((a, b) => b.prize - a.prize);
+    })(),
+  };
 }
 
 function buildMetricInsights(data: AnalyticsData): MetricInsight[] {
@@ -344,10 +559,11 @@ export function AnalyticsDashboard({ data }: Readonly<{ data: AnalyticsData }>) 
   const csOwner = searchParams.get("csOwner") || "";
   const [detailFilter, setDetailFilter] = useState<DetailFilter | null>(null);
   const [selectedMetric, setSelectedMetric] = useState<MetricKey | null>(null);
+  const [showMetricRows, setShowMetricRows] = useState(false);
   const detailRef = useRef<HTMLDivElement>(null);
-  const metricRef = useRef<HTMLDivElement>(null);
   const metrics = buildMetricInsights(data);
   const activeMetric = metrics.find((metric) => metric.key === selectedMetric) ?? null;
+  const view = buildMetricLens(data, activeMetric);
   const topPrize = data.insights.topPrize;
 
   function setLens(next: string) {
@@ -365,12 +581,12 @@ export function AnalyticsDashboard({ data }: Readonly<{ data: AnalyticsData }>) 
     router.push(`/analytics?${params.toString()}`);
   }
 
-  const maxFunnel = Math.max(...data.funnel.map((f) => f.count), 1);
-  const maxPrize = Math.max(...data.themeScores.map((t) => t.prize), 1);
-  const visiblePriorities = data.priorityMix.filter((priority) => priority.count > 0);
+  const maxFunnel = Math.max(...view.funnel.map((f) => f.count), 1);
+  const maxPrize = Math.max(...view.themeScores.map((t) => t.prize), 1);
+  const visiblePriorities = view.priorityMix.filter((priority) => priority.count > 0);
 
   const visibleDetails = detailFilter
-    ? data.requestDetails.filter((request) => {
+    ? view.rows.filter((request) => {
         if (detailFilter.kind === "all") return true;
         if (detailFilter.kind === "consolidation") {
           return request.consolidation === detailFilter.value;
@@ -384,12 +600,12 @@ export function AnalyticsDashboard({ data }: Readonly<{ data: AnalyticsData }>) 
     label: string,
     value?: string,
   ) {
-    setSelectedMetric(null);
     setDetailFilter({ kind, label, value });
   }
 
   function openMetric(key: MetricKey) {
     setDetailFilter(null);
+    setShowMetricRows(false);
     setSelectedMetric((current) => (current === key ? null : key));
   }
 
@@ -398,53 +614,42 @@ export function AnalyticsDashboard({ data }: Readonly<{ data: AnalyticsData }>) 
     detailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [detailFilter]);
 
-  useEffect(() => {
-    if (!selectedMetric) return;
-    metricRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, [selectedMetric]);
-
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-[0.16em] text-[var(--accent)]">
-            {lens === "global" ? "Organization analytics" : `${lens.toUpperCase()} analytics`}
-          </p>
-          <h1 className="font-[family-name:var(--font-display)] text-3xl">
-            Product request intelligence
-          </h1>
-          <p className="mt-1 max-w-3xl text-sm text-[var(--ink-muted)]">
-            Click any KPI card to see the exact formula, calculation steps, and
-            underlying requests. Charts also drill into accounts, asks, consolidations,
-            and features.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {(["global", "csm", "pm"] as const).map((l) => (
-            <button
-              key={l}
-              type="button"
-              onClick={() => setLens(l)}
-              className={`rounded-lg px-3 py-1.5 text-sm capitalize ${
-                lens === l
-                  ? "bg-[var(--accent-soft)] font-medium text-[var(--accent)]"
-                  : "bg-[var(--surface)] text-[var(--ink-muted)] ring-1 ring-[var(--border)]"
-              }`}
-            >
-              {l === "global" ? "Organization" : l.toUpperCase()}
-            </button>
-          ))}
-        </div>
-      </div>
+      <PageHeader
+        eyebrow={
+          lens === "global" ? "Organization analytics" : `${lens.toUpperCase()} analytics`
+        }
+        title="Product request intelligence"
+        description="Click a KPI to open its formula under the cards and filter the charts below to that lens. Click again to clear."
+        actions={
+          <div className="flex flex-wrap gap-2">
+            {(["global", "csm", "pm"] as const).map((l) => (
+              <button
+                key={l}
+                type="button"
+                onClick={() => setLens(l)}
+                className={`rounded-[var(--radius-md)] px-3 py-1.5 text-sm capitalize transition ${
+                  lens === l
+                    ? "bg-[var(--accent-soft)] font-medium text-[var(--accent)]"
+                    : "bg-[var(--surface)] text-[var(--ink-muted)] ring-1 ring-[var(--border)] hover:bg-[var(--surface-2)]"
+                }`}
+              >
+                {l === "global" ? "Organization" : l.toUpperCase()}
+              </button>
+            ))}
+          </div>
+        }
+      />
 
       {topPrize ? (
-        <section className="rounded-2xl border border-[var(--accent)] bg-[var(--accent-soft)] px-5 py-4">
+        <section className="rounded-[var(--radius-xl)] border border-[var(--accent)] bg-[var(--accent-soft)] px-5 py-4">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <p className="text-xs font-medium uppercase tracking-[0.16em] text-[var(--accent)]">
+              <p className="text-eyebrow">
                 This week&apos;s top prize recommendation
               </p>
-              <h2 className="mt-1 font-[family-name:var(--font-display)] text-2xl">
+              <h2 className="mt-1 font-display text-2xl">
                 {topPrize.theme}
               </h2>
               <p className="mt-1 text-sm text-[var(--ink-muted)]">
@@ -474,7 +679,7 @@ export function AnalyticsDashboard({ data }: Readonly<{ data: AnalyticsData }>) 
         <div className="flex flex-wrap items-center gap-3">
           <label className="text-sm text-[var(--ink-muted)]">CS Owner</label>
           <select
-            className="rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm"
+            className="control w-auto"
             value={csOwner}
             onChange={(e) => setOwner(e.target.value)}
           >
@@ -498,6 +703,7 @@ export function AnalyticsDashboard({ data }: Readonly<{ data: AnalyticsData }>) 
             warn={metric.warn}
             active={selectedMetric === metric.key}
             onClick={() => openMetric(metric.key)}
+            interactiveLabel
           />
         ))}
       </div>
@@ -512,23 +718,51 @@ export function AnalyticsDashboard({ data }: Readonly<{ data: AnalyticsData }>) 
             warn={metric.warn}
             active={selectedMetric === metric.key}
             onClick={() => openMetric(metric.key)}
+            interactiveLabel
           />
         ))}
       </div>
 
-      <div ref={metricRef}>
-        {activeMetric ? (
-          <MetricBreakdown
-            metric={activeMetric}
-            onClose={() => setSelectedMetric(null)}
-          />
-        ) : (
-          <p className="rounded-xl border border-dashed border-[var(--border)] px-4 py-3 text-sm text-[var(--ink-muted)]">
-            Tip: click any KPI card above to open its calculation and the requests
-            behind that number.
+      {activeMetric ? (
+        <InlineFormulaStrip
+          metric={activeMetric}
+          lensLabel={view.label}
+          showRows={showMetricRows}
+          onToggleRows={() => setShowMetricRows((current) => !current)}
+          onClose={() => {
+            setSelectedMetric(null);
+            setShowMetricRows(false);
+          }}
+        />
+      ) : (
+        <p className="rounded-xl border border-dashed border-[var(--border)] px-4 py-3 text-sm text-[var(--ink-muted)]">
+          Tip: select a KPI to filter the page and reveal its formula here — no
+          jump to the bottom.
+        </p>
+      )}
+
+      {view.label ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--accent)] bg-[var(--accent-soft)] px-4 py-3 text-sm">
+          <p>
+            <span className="font-medium text-[var(--accent)]">Active filter · </span>
+            {view.label}
+            <span className="text-[var(--ink-muted)]">
+              {" "}
+              · {view.rows.length} request{view.rows.length === 1 ? "" : "s"}
+            </span>
           </p>
-        )}
-      </div>
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedMetric(null);
+              setShowMetricRows(false);
+            }}
+            className="rounded-lg px-3 py-1.5 text-sm font-medium text-[var(--accent)] hover:bg-[var(--surface)]/60"
+          >
+            Clear lens
+          </button>
+        </div>
+      ) : null}
 
       <Card title="How this page analyzes demand">
         <div className="grid gap-4 lg:grid-cols-2">
@@ -551,75 +785,97 @@ export function AnalyticsDashboard({ data }: Readonly<{ data: AnalyticsData }>) 
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card
-          title="Where requests stand"
+          title={view.label ? "Where requests stand (filtered)" : "Where requests stand"}
           action={
             <DetailMenu
               label="status"
-              onShowAll={() => showDetails("all", "All product requests")}
+              onShowAll={() =>
+                showDetails(
+                  "all",
+                  view.label ? `Requests in ${activeMetric?.label}` : "All product requests",
+                )
+              }
             />
           }
         >
           <div className="space-y-3">
-            {data.funnel.map((f) => (
-              <button
-                key={f.status}
-                type="button"
-                onClick={() =>
-                  showDetails("status", `${readable(f.status)} requests`, f.status)
-                }
-                className="block w-full rounded-lg p-1 text-left transition hover:bg-[var(--surface-2)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
-              >
-                <div className="mb-1 flex justify-between gap-3 text-sm">
-                  <span>{readable(f.status)}</span>
-                  <span className="font-medium">
-                    {f.count} · {money(f.uniqueArr)}
-                  </span>
-                </div>
-                <div className="h-2 rounded-full bg-[var(--surface-2)]">
-                  <div
-                    className={`h-2 rounded-full ${statusColors[f.status] ?? "bg-zinc-500"}`}
-                    style={{ width: `${(f.count / maxFunnel) * 100}%` }}
-                  />
-                </div>
-              </button>
-            ))}
+            {view.funnel.length ? (
+              view.funnel.map((f) => (
+                <button
+                  key={f.status}
+                  type="button"
+                  onClick={() =>
+                    showDetails("status", `${readableLabel(f.status)} requests`, f.status)
+                  }
+                  className="block w-full rounded-lg p-1 text-left transition hover:bg-[var(--surface-2)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+                >
+                  <div className="mb-1 flex justify-between gap-3 text-sm">
+                    <span>{readableLabel(f.status)}</span>
+                    <span className="font-medium">
+                      {f.count} · {money(f.uniqueArr)}
+                    </span>
+                  </div>
+                  <div className="h-2 rounded-full bg-[var(--surface-2)]">
+                    <div
+                      className={`h-2 rounded-full ${statusChartColors[f.status] ?? "bg-[var(--chart-neutral)]"}`}
+                      style={{ width: `${(f.count / maxFunnel) * 100}%` }}
+                    />
+                  </div>
+                </button>
+              ))
+            ) : (
+              <p className="text-sm text-[var(--ink-muted)]">
+                No status rows match this KPI lens.
+              </p>
+            )}
           </div>
         </Card>
 
         <Card
-          title="Priority at a glance"
+          title={view.label ? "Priority at a glance (filtered)" : "Priority at a glance"}
           action={
             <DetailMenu
               label="priority"
-              onShowAll={() => showDetails("all", "All product requests")}
+              onShowAll={() =>
+                showDetails(
+                  "all",
+                  view.label ? `Requests in ${activeMetric?.label}` : "All product requests",
+                )
+              }
             />
           }
         >
           <div className="grid grid-cols-2 gap-3">
-            {visiblePriorities.map((p) => (
-              <button
-                key={p.priority}
-                type="button"
-                onClick={() =>
-                  showDetails(
-                    "priority",
-                    `${readable(p.priority)} priority requests`,
-                    p.priority,
-                  )
-                }
-                className="rounded-xl bg-[var(--surface-2)] p-4 text-left transition hover:ring-2 hover:ring-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
-              >
-                <div className="flex items-center gap-2 text-sm text-[var(--ink-muted)]">
-                  <span
-                    className={`h-2.5 w-2.5 rounded-full ${
-                      priorityColors[p.priority] ?? "bg-zinc-400"
-                    }`}
-                  />
-                  {readable(p.priority)}
-                </div>
-                <p className="mt-2 text-2xl font-semibold">{p.count}</p>
-              </button>
-            ))}
+            {visiblePriorities.length ? (
+              visiblePriorities.map((p) => (
+                <button
+                  key={p.priority}
+                  type="button"
+                  onClick={() =>
+                    showDetails(
+                      "priority",
+                      `${readableLabel(p.priority)} priority requests`,
+                      p.priority,
+                    )
+                  }
+                  className="rounded-xl bg-[var(--surface-2)] p-4 text-left transition hover:ring-2 hover:ring-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+                >
+                  <div className="flex items-center gap-2 text-sm text-[var(--ink-muted)]">
+                    <span
+                      className={`h-2.5 w-2.5 rounded-full ${
+                        priorityChartColors[p.priority] ?? "bg-[var(--chart-neutral)]"
+                      }`}
+                    />
+                    {readableLabel(p.priority)}
+                  </div>
+                  <p className="mt-2 text-2xl font-semibold">{p.count}</p>
+                </button>
+              ))
+            ) : (
+              <p className="col-span-2 text-sm text-[var(--ink-muted)]">
+                No priority rows match this KPI lens.
+              </p>
+            )}
           </div>
         </Card>
       </div>
@@ -634,10 +890,17 @@ export function AnalyticsDashboard({ data }: Readonly<{ data: AnalyticsData }>) 
         ) : (
           <button
             type="button"
-            onClick={() => showDetails("all", "All product requests")}
+            onClick={() =>
+              showDetails(
+                "all",
+                view.label
+                  ? `Requests in ${activeMetric?.label}`
+                  : "All product requests",
+              )
+            }
             className="w-full rounded-xl border border-dashed border-[var(--border)] px-4 py-3 text-sm font-medium text-[var(--accent)] transition hover:border-[var(--accent)] hover:bg-[var(--accent-soft)]"
           >
-            View the complete request table
+            View the {view.label ? "filtered" : "complete"} request table
           </button>
         )}
       </div>
@@ -645,13 +908,13 @@ export function AnalyticsDashboard({ data }: Readonly<{ data: AnalyticsData }>) 
       {lens !== "csm" ? (
         <>
           <div className="grid gap-6 lg:grid-cols-2">
-            <Card title="Top roadmap opportunities (gaps)">
+            <Card title={view.label ? "Top roadmap opportunities (filtered)" : "Top roadmap opportunities (gaps)"}>
               <p className="mb-3 text-sm text-[var(--ink-muted)]">
                 ≥3 accounts, not In Roadmap. Click a row for account/ask detail.
               </p>
-              {data.gapBoard.length ? (
+              {view.gapBoard.length ? (
                 <div className="space-y-2">
-                  {data.gapBoard.slice(0, 5).map((gap) => (
+                  {view.gapBoard.slice(0, 5).map((gap) => (
                     <button
                       key={gap.theme}
                       type="button"
@@ -683,51 +946,56 @@ export function AnalyticsDashboard({ data }: Readonly<{ data: AnalyticsData }>) 
                 </div>
               ) : (
                 <p className="text-sm text-[var(--ink-muted)]">
-                  No multi-account gaps yet. A gap needs ≥3 accounts on one
-                  consolidation that is not In Roadmap.
+                  No multi-account gaps match this KPI lens.
                 </p>
               )}
             </Card>
 
-            <Card title="Prize leaderboard">
+            <Card title={view.label ? "Prize leaderboard (filtered)" : "Prize leaderboard"}>
               <p className="mb-3 text-sm text-[var(--ink-muted)]">
                 Highest customer demand by prize score (accounts × unique ARR).
               </p>
               <div className="space-y-3">
-                {data.themeScores.slice(0, 6).map((theme) => (
-                  <button
-                    key={theme.theme}
-                    type="button"
-                    onClick={() =>
-                      showDetails(
-                        "consolidation",
-                        `${theme.theme} · demand detail`,
-                        theme.theme,
-                      )
-                    }
-                    className="block w-full rounded-lg p-1 text-left transition hover:bg-[var(--surface-2)]"
-                  >
-                    <div className="mb-1 flex justify-between gap-3 text-sm">
-                      <span className="font-medium">{theme.theme}</span>
-                      <span>
-                        {money(theme.prize)} ·{" "}
-                        {theme.inRoadmap ? "Covered" : "Gap"}
-                      </span>
-                    </div>
-                    <div className="h-2 rounded-full bg-[var(--surface-2)]">
-                      <div
-                        className={`h-2 rounded-full ${
-                          theme.inRoadmap ? "bg-emerald-500" : "bg-[var(--accent)]"
-                        }`}
-                        style={{ width: `${(theme.prize / maxPrize) * 100}%` }}
-                      />
-                    </div>
-                    <p className="mt-1 text-xs text-[var(--ink-muted)]">
-                      {theme.accounts} accounts · {money(theme.uniqueArr)} ARR ·{" "}
-                      {theme.feature}
-                    </p>
-                  </button>
-                ))}
+                {view.themeScores.length ? (
+                  view.themeScores.slice(0, 6).map((theme) => (
+                    <button
+                      key={theme.theme}
+                      type="button"
+                      onClick={() =>
+                        showDetails(
+                          "consolidation",
+                          `${theme.theme} · demand detail`,
+                          theme.theme,
+                        )
+                      }
+                      className="block w-full rounded-lg p-1 text-left transition hover:bg-[var(--surface-2)]"
+                    >
+                      <div className="mb-1 flex justify-between gap-3 text-sm">
+                        <span className="font-medium">{theme.theme}</span>
+                        <span>
+                          {money(theme.prize)} ·{" "}
+                          {theme.inRoadmap ? "Covered" : "Gap"}
+                        </span>
+                      </div>
+                      <div className="h-2 rounded-full bg-[var(--surface-2)]">
+                        <div
+                          className={`h-2 rounded-full ${
+                            theme.inRoadmap ? "bg-[var(--chart-shipped)]" : "bg-[var(--accent)]"
+                          }`}
+                          style={{ width: `${(theme.prize / maxPrize) * 100}%` }}
+                        />
+                      </div>
+                      <p className="mt-1 text-xs text-[var(--ink-muted)]">
+                        {theme.accounts} accounts · {money(theme.uniqueArr)} ARR ·{" "}
+                        {theme.feature}
+                      </p>
+                    </button>
+                  ))
+                ) : (
+                  <p className="text-sm text-[var(--ink-muted)]">
+                    No consolidations match this KPI lens.
+                  </p>
+                )}
               </div>
             </Card>
           </div>
@@ -739,7 +1007,7 @@ export function AnalyticsDashboard({ data }: Readonly<{ data: AnalyticsData }>) 
                   label="On roadmap now"
                   value={data.totals.roadmapUniqueArr}
                   total={data.totals.uniqueBacklogArr}
-                  color="bg-emerald-500"
+                  color="bg-[var(--chart-shipped)]"
                 />
                 <CoverageBar
                   label="Opportunity if gaps ship"
@@ -754,7 +1022,7 @@ export function AnalyticsDashboard({ data }: Readonly<{ data: AnalyticsData }>) 
                     0,
                   )}
                   total={data.totals.uniqueBacklogArr}
-                  color="bg-amber-500"
+                  color="bg-[var(--chart-medium)]"
                 />
                 <p className="text-sm text-[var(--ink-muted)]">
                   Closing all current gaps can move ARR coverage from{" "}
@@ -770,11 +1038,11 @@ export function AnalyticsDashboard({ data }: Readonly<{ data: AnalyticsData }>) 
               </div>
             </Card>
 
-            <Card title="Epic clusters by prize">
-              {data.epicClusters.length ? (
+            <Card title={view.label ? "Epic clusters (filtered)" : "Epic clusters by prize"}>
+              {view.epicClusters.length ? (
                 <SimpleTable
                   headers={["Epic", "Asks", "Accounts", "Unique ARR", "Prize"]}
-                  rows={data.epicClusters.map((epic) => [
+                  rows={view.epicClusters.map((epic) => [
                     epic.epic,
                     String(epic.asks),
                     String(epic.accounts),
@@ -784,13 +1052,13 @@ export function AnalyticsDashboard({ data }: Readonly<{ data: AnalyticsData }>) 
                 />
               ) : (
                 <p className="text-sm text-[var(--ink-muted)]">
-                  No epic clusters matched yet.
+                  No epic clusters match this KPI lens.
                 </p>
               )}
             </Card>
           </div>
 
-          {data.emergingGaps.length ? (
+          {view.emergingGaps.length ? (
             <Card title="Emerging opportunities (2 accounts)">
               <p className="mb-3 text-sm text-[var(--ink-muted)]">
                 Not gaps yet, but worth watching — one more account would make these
@@ -798,7 +1066,7 @@ export function AnalyticsDashboard({ data }: Readonly<{ data: AnalyticsData }>) 
               </p>
               <SimpleTable
                 headers={["Consolidation", "Feature", "Accounts", "Unique ARR", "Prize"]}
-                rows={data.emergingGaps.map((gap) => [
+                rows={view.emergingGaps.map((gap) => [
                   gap.theme,
                   gap.feature,
                   String(gap.accounts),
@@ -812,21 +1080,21 @@ export function AnalyticsDashboard({ data }: Readonly<{ data: AnalyticsData }>) 
       ) : null}
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card title="Needs attention now">
+        <Card title={view.label ? "Needs attention (filtered)" : "Needs attention now"}>
           <p className="mb-3 text-sm text-[var(--ink-muted)]">
             Critical requests still waiting for a Product decision (New / Shared /
             Discussed).
           </p>
-          <QueueList rows={data.criticalNew} />
+          <QueueList rows={view.criticalNew} />
         </Card>
 
-        <Card title="Account heat (asks × ARR)">
+        <Card title={view.label ? "Account heat (filtered)" : "Account heat (asks × ARR)"}>
           <p className="mb-3 text-sm text-[var(--ink-muted)]">
             Accounts with the strongest combination of volume and revenue weight.
           </p>
           <SimpleTable
             headers={["Account", "ARR", "Asks", "Critical", "Heat"]}
-            rows={data.accountHeat.slice(0, 8).map((account) => [
+            rows={view.accountHeat.map((account) => [
               account.name,
               money(account.arr),
               String(account.asks),
@@ -852,11 +1120,11 @@ export function AnalyticsDashboard({ data }: Readonly<{ data: AnalyticsData }>) 
         </Card>
       ) : null}
 
-      {lens !== "csm" && data.roadmapThemes.length ? (
-        <Card title="Already on roadmap (unique ARR)">
+      {lens !== "csm" && view.roadmapThemes.length ? (
+        <Card title={view.label ? "On roadmap (filtered)" : "Already on roadmap (unique ARR)"}>
           <SimpleTable
             headers={["Consolidation", "Feature", "Accounts", "Unique ARR", "Prize"]}
-            rows={data.roadmapThemes.map((theme) => [
+            rows={view.roadmapThemes.map((theme) => [
               theme.theme,
               theme.feature,
               String(theme.accounts),
@@ -870,130 +1138,83 @@ export function AnalyticsDashboard({ data }: Readonly<{ data: AnalyticsData }>) 
   );
 }
 
-const statusColors: Record<string, string> = {
-  NEW: "bg-sky-500",
-  SHARED_WITH_PRODUCT: "bg-cyan-500",
-  DISCUSSED_WITH_PRODUCT: "bg-amber-500",
-  IN_ROADMAP: "bg-indigo-500",
-  PLANNED: "bg-violet-500",
-  IN_PROGRESS: "bg-orange-500",
-  SHIPPED: "bg-emerald-500",
-  DECLINED: "bg-rose-500",
-  CLOSED: "bg-zinc-400",
-};
-
-const priorityColors: Record<string, string> = {
-  CRITICAL: "bg-rose-500",
-  HIGH: "bg-orange-500",
-  MEDIUM: "bg-amber-400",
-  LOW: "bg-emerald-500",
-  NOT_SET: "bg-zinc-400",
-};
-
-function readable(value: string) {
-  return value
-    .replaceAll("_", " ")
-    .toLowerCase()
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
-}
-
-function Stat({
-  label,
-  value,
-  hint,
-  warn,
-  active,
-  onClick,
-}: {
-  label: string;
-  value: string;
-  hint?: string;
-  warn?: boolean;
-  active?: boolean;
-  onClick?: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`rounded-2xl border bg-[var(--surface)] p-4 text-left transition ${
-        active
-          ? "border-[var(--accent)] ring-2 ring-[var(--accent)]"
-          : "border-[var(--border)] hover:border-[var(--accent)] hover:bg-[var(--surface-2)]"
-      }`}
-    >
-      <div className="flex items-start justify-between gap-2">
-        <p className="text-xs uppercase tracking-wide text-[var(--ink-muted)]">{label}</p>
-        <span className="text-[10px] uppercase tracking-wide text-[var(--accent)]">
-          {active ? "Open" : "Click"}
-        </span>
-      </div>
-      <p className={`mt-1 text-3xl font-semibold ${warn ? "text-amber-800" : ""}`}>
-        {value}
-      </p>
-      {hint ? <p className="mt-1 text-xs text-[var(--ink-muted)]">{hint}</p> : null}
-    </button>
-  );
-}
-
-function MetricBreakdown({
+function InlineFormulaStrip({
   metric,
+  lensLabel,
+  showRows,
+  onToggleRows,
   onClose,
 }: {
   metric: MetricInsight;
+  lensLabel: string | null;
+  showRows: boolean;
+  onToggleRows: () => void;
   onClose: () => void;
 }) {
   return (
-    <section className="scroll-mt-4 rounded-2xl border border-[var(--accent)] bg-[var(--surface)]">
+    <section className="rounded-[var(--radius-xl)] border border-[var(--accent)] bg-[var(--surface)]">
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--border)] px-5 py-4">
         <div>
-          <p className="text-xs font-medium uppercase tracking-[0.16em] text-[var(--accent)]">
-            Calculation breakdown
+          <p className="text-eyebrow">
+            Formula · under KPIs
           </p>
-          <h2 className="mt-1 font-[family-name:var(--font-display)] text-2xl">
+          <h2 className="mt-1 font-display text-2xl">
             {metric.label}: {metric.value}
           </h2>
           <p className="mt-1 text-sm text-[var(--ink-muted)]">{metric.meaning}</p>
+          {lensLabel ? (
+            <p className="mt-2 text-xs font-medium text-[var(--accent)]">{lensLabel}</p>
+          ) : null}
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="rounded-lg px-3 py-1.5 text-sm text-[var(--ink-muted)] hover:bg-[var(--surface-2)]"
-        >
-          Close
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={onToggleRows}
+            className="rounded-[var(--radius-md)] bg-[var(--accent-soft)] px-3 py-1.5 text-sm font-medium text-[var(--accent)]"
+          >
+            {showRows ? "Hide rows" : `See ${metric.rows.length} rows`}
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-[var(--radius-md)] px-3 py-1.5 text-sm text-[var(--ink-muted)] hover:bg-[var(--surface-2)]"
+          >
+            Clear
+          </button>
+        </div>
       </div>
 
-      <div className="grid gap-4 px-5 py-4 lg:grid-cols-[1.1fr_0.9fr]">
-        <div className="rounded-xl bg-[var(--surface-2)] p-4">
+      <div className="grid gap-4 px-5 py-4 lg:grid-cols-[1.2fr_0.8fr]">
+        <div className="rounded-[var(--radius-lg)] bg-[var(--surface-2)] p-4">
           <p className="text-sm font-semibold">Formula</p>
           <p className="mt-2 text-sm leading-6 text-[var(--ink)]">{metric.formula}</p>
-          <ol className="mt-4 list-decimal space-y-2 pl-5 text-sm text-[var(--ink-muted)]">
+          <ol className="mt-3 list-decimal space-y-1.5 pl-5 text-sm text-[var(--ink-muted)]">
             {metric.steps.map((step) => (
               <li key={step}>{step}</li>
             ))}
           </ol>
         </div>
-        <div className="rounded-xl border border-[var(--border)] p-4">
-          <p className="text-sm font-semibold">Why it matters</p>
-          <p className="mt-2 text-sm leading-6 text-[var(--ink-muted)]">{metric.meaning}</p>
-          <p className="mt-4 text-xs uppercase tracking-wide text-[var(--ink-muted)]">
-            Underlying rows
-          </p>
-          <p className="mt-1 text-2xl font-semibold">{metric.rows.length}</p>
+        <div className="rounded-[var(--radius-lg)] border border-[var(--border)] p-4">
+          <p className="text-sm font-semibold">Behind this number</p>
+          <p className="mt-2 font-display text-3xl font-semibold">{metric.rows.length}</p>
           <p className="text-sm text-[var(--ink-muted)]">{metric.rowLabel}</p>
+          <p className="mt-3 text-sm leading-6 text-[var(--ink-muted)]">
+            Charts below are filtered to this lens. Clear the KPI to return to the
+            full org view.
+          </p>
         </div>
       </div>
 
-      <div className="border-t border-[var(--border)] px-5 py-4">
-        <p className="mb-3 text-sm font-medium">{metric.rowLabel}</p>
-        <RequestDetailsTable
-          title={metric.label}
-          rows={metric.rows}
-          onClose={onClose}
-          embedded
-        />
-      </div>
+      {showRows ? (
+        <div className="border-t border-[var(--border)] px-5 py-4">
+          <RequestDetailsTable
+            title={metric.label}
+            rows={metric.rows}
+            onClose={onToggleRows}
+            embedded
+          />
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -1022,26 +1243,6 @@ function CoverageBar({
         <div className={`h-2.5 rounded-full ${color}`} style={{ width: `${width}%` }} />
       </div>
     </div>
-  );
-}
-
-function Card({
-  title,
-  children,
-  action,
-}: {
-  title: string;
-  children: React.ReactNode;
-  action?: React.ReactNode;
-}) {
-  return (
-    <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
-      <div className="flex items-start justify-between gap-3">
-        <h2 className="font-[family-name:var(--font-display)] text-xl">{title}</h2>
-        {action}
-      </div>
-      <div className="mt-4">{children}</div>
-    </section>
   );
 }
 
@@ -1094,7 +1295,7 @@ function DetailMenu({
       {open ? (
         <div
           role="menu"
-          className="absolute right-0 z-10 mt-1 w-48 rounded-xl border border-[var(--border)] bg-white p-1 shadow-lg"
+          className="absolute right-0 z-10 mt-1 w-48 rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-1 shadow-[var(--shadow-md)]"
         >
           <button
             type="button"
@@ -1128,7 +1329,7 @@ function RequestDetailsTable({
     <div className="overflow-x-auto">
       <table className="w-full min-w-[1100px] text-left text-sm">
         <thead>
-          <tr className="bg-[var(--surface-2)] text-xs uppercase tracking-wide text-[var(--ink-muted)]">
+          <tr className="bg-[var(--surface-2)] text-label">
             {[
               "Account",
               "Ask",
@@ -1168,10 +1369,10 @@ function RequestDetailsTable({
                 {money(request.arr)}
               </td>
               <td className="whitespace-nowrap px-4 py-3">
-                <Badge>{readable(request.priority)}</Badge>
+                <Badge>{readableLabel(request.priority)}</Badge>
               </td>
               <td className="whitespace-nowrap px-4 py-3">
-                {readable(request.status)}
+                {readableLabel(request.status)}
               </td>
               <td className="whitespace-nowrap px-4 py-3">{request.csOwner}</td>
             </tr>
@@ -1195,10 +1396,10 @@ function RequestDetailsTable({
   }
 
   return (
-    <section className="scroll-mt-4 rounded-2xl border border-[var(--accent)] bg-[var(--surface)]">
+    <section className="scroll-mt-4 rounded-[var(--radius-xl)] border border-[var(--accent)] bg-[var(--surface)]">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] px-5 py-4">
         <div>
-          <h2 className="font-[family-name:var(--font-display)] text-xl">{title}</h2>
+          <h2 className="font-display text-xl">{title}</h2>
           <p className="text-sm text-[var(--ink-muted)]">
             {rows.length} request{rows.length === 1 ? "" : "s"} behind this view
           </p>
@@ -1288,7 +1489,7 @@ function QueueList({
               ) : null}
             </span>
             <span className="flex flex-shrink-0 items-center gap-2 text-xs text-[var(--ink-muted)]">
-              {r.status ? <Badge>{readable(r.status)}</Badge> : null}
+              {r.status ? <Badge>{readableLabel(r.status)}</Badge> : null}
               {r.arr != null ? money(r.arr) : "—"}
               {r.csOwner ? <Badge>{r.csOwner}</Badge> : null}
             </span>

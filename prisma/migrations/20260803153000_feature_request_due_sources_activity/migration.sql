@@ -5,7 +5,7 @@ CREATE TYPE "FeatureRequestSourceType" AS ENUM ('SLACK', 'JIRA');
 CREATE TYPE "FeatureRequestActivityKind" AS ENUM ('NOTE', 'SLACK', 'JIRA', 'STATUS', 'SYSTEM');
 
 -- AlterTable
-ALTER TABLE "FeatureRequest" ADD COLUMN "dueDate" TIMESTAMP(3);
+ALTER TABLE "FeatureRequest" ADD COLUMN IF NOT EXISTS "dueDate" TIMESTAMP(3);
 
 -- CreateTable
 CREATE TABLE "FeatureRequestSource" (

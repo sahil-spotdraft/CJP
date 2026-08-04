@@ -28,7 +28,7 @@ export default async function RoadmapPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-[family-name:var(--font-display)] text-3xl">Roadmap</h1>
+        <h1 className="font-display text-3xl">Roadmap</h1>
         <p className="mt-1 text-[var(--ink-muted)]">
           Group canonical feature requests into themes and quarters.
         </p>
@@ -40,7 +40,7 @@ export default async function RoadmapPage() {
         {items.map((item) => (
           <section
             key={item.id}
-            className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5"
+            className="rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] p-5"
           >
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-xl font-semibold">{item.title}</h2>
@@ -74,7 +74,7 @@ export default async function RoadmapPage() {
         ))}
       </div>
 
-      <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+      <section className="rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] p-5">
         <h2 className="text-xl font-semibold">Unassigned</h2>
         <div className="mt-3 space-y-2">
           {unassigned.map((request) => (

@@ -5,6 +5,7 @@ import {
 } from "@/lib/services/consolidation";
 import { ProductRequestsHomeTable } from "@/components/hub/product-requests-home-table";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
 
 export const dynamic = "force-dynamic";
 
@@ -14,18 +15,15 @@ export default async function HomePage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="font-[family-name:var(--font-display)] text-3xl">Feature requests</h1>
-          <p className="mt-1 text-[var(--ink-muted)]">
-            One row per consolidation; WS Name lists every workspace on that feature. Click a row to
-            open its detail page.
-          </p>
-        </div>
-        <Link href="/product-requests/new">
-          <Button>Create feature request</Button>
-        </Link>
-      </div>
+      <PageHeader
+        title="Feature requests"
+        description="One row per consolidation; WS Name lists every workspace on that feature. Click a row to open its detail page."
+        actions={
+          <Link href="/product-requests/new">
+            <Button>Create feature request</Button>
+          </Link>
+        }
+      />
 
       <ProductRequestsHomeTable requests={rows} />
     </div>

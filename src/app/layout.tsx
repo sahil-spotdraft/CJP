@@ -6,11 +6,13 @@ import "./globals.css";
 const dmSans = DM_Sans({
   subsets: ["latin"],
   variable: "--font-sans",
+  display: "swap",
 });
 
 const fraunces = Fraunces({
   subsets: ["latin"],
   variable: "--font-display",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -25,7 +27,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${dmSans.variable} ${fraunces.variable} font-[family-name:var(--font-sans)] antialiased`}>
+      <body
+        className={`${dmSans.variable} ${fraunces.variable} font-[family-name:var(--font-sans)] antialiased`}
+      >
         <Providers>{children}</Providers>
       </body>
     </html>

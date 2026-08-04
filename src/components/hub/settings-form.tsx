@@ -75,7 +75,7 @@ export function SettingsForm({ settings, channels, orgs }: Props) {
     <div className="space-y-6">
       <form
         onSubmit={saveSettings}
-        className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6"
+        className="space-y-4 rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] p-6"
       >
         <h2 className="text-xl font-semibold">Classifier</h2>
         <div>
@@ -103,7 +103,7 @@ export function SettingsForm({ settings, channels, orgs }: Props) {
         </Button>
       </form>
 
-      <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6">
+      <section className="rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] p-6">
         <h2 className="text-xl font-semibold">Watched channels</h2>
         <div className="mt-4 space-y-2">
           {channels.map((channel) => (
@@ -137,7 +137,7 @@ export function SettingsForm({ settings, channels, orgs }: Props) {
               id="orgId"
               name="orgId"
               required
-              className="w-full rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm"
+              className="control"
             >
               <option value="">Select org</option>
               {orgs.map((org) => (

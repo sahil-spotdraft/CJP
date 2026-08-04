@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { Badge } from "@/components/ui/badge";
 import { OrgCreateSidebar } from "@/components/hub/org-create-sidebar";
+import { PageHeader } from "@/components/ui/page-header";
 
 export const dynamic = "force-dynamic";
 
@@ -16,18 +17,14 @@ export default async function OrgsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="font-[family-name:var(--font-display)] text-3xl">Customer orgs</h1>
-          <p className="mt-1 text-[var(--ink-muted)]">
-            Map each customer workspace and its Slack channels.
-          </p>
-        </div>
-        <OrgCreateSidebar />
-      </div>
+      <PageHeader
+        title="Customer orgs"
+        description="Map each customer workspace and its Slack channels."
+        actions={<OrgCreateSidebar />}
+      />
 
       {orgs.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface)] p-10 text-center text-[var(--ink-muted)]">
+        <div className="rounded-[var(--radius-xl)] border border-dashed border-[var(--border)] bg-[var(--surface)] p-10 text-center text-[var(--ink-muted)]">
           No orgs yet. Click Add org to create one.
         </div>
       ) : (
@@ -36,7 +33,7 @@ export default async function OrgsPage() {
             <Link
               key={org.id}
               href={`/orgs/${org.id}`}
-              className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 transition hover:border-[var(--accent)]"
+              className="rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] p-5 transition hover:border-[var(--accent)]"
             >
               <h2 className="text-lg font-semibold">{org.name}</h2>
               <p className="text-sm text-[var(--ink-muted)]">{org.slug}</p>

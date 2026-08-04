@@ -161,10 +161,10 @@ export function RequestDetailClient({ detail }: { detail: Detail }) {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6">
+      <div className="rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="font-[family-name:var(--font-display)] text-3xl">{detail.title}</h1>
+            <h1 className="font-display text-3xl">{detail.title}</h1>
             <p className="mt-2 max-w-3xl text-[var(--ink-muted)]">{detail.summary}</p>
           </div>
           <RequestStatusBadge status={detail.status} />
@@ -192,7 +192,7 @@ export function RequestDetailClient({ detail }: { detail: Detail }) {
             <Label htmlFor="status">Status</Label>
             <select
               id="status"
-              className="w-full rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm"
+              className="control"
               value={status}
               onChange={(e) => setStatus(e.target.value as FeatureRequestStatus)}
             >
@@ -207,7 +207,7 @@ export function RequestDetailClient({ detail }: { detail: Detail }) {
             <Label htmlFor="roadmap">Roadmap item</Label>
             <select
               id="roadmap"
-              className="w-full rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm"
+              className="control"
               value={roadmapId}
               onChange={(e) => setRoadmapId(e.target.value)}
             >
@@ -240,8 +240,8 @@ export function RequestDetailClient({ detail }: { detail: Detail }) {
         </div>
       </div>
 
-      <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6">
-        <h2 className="font-[family-name:var(--font-display)] text-2xl">Sources</h2>
+      <section className="rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] p-6">
+        <h2 className="font-display text-2xl">Sources</h2>
         <p className="mt-1 text-sm text-[var(--ink-muted)]">
           Slack channels or Jira tickets linked to this feature (manual links for now).
         </p>
@@ -281,7 +281,7 @@ export function RequestDetailClient({ detail }: { detail: Detail }) {
             <Label htmlFor="sourceType">Type</Label>
             <select
               id="sourceType"
-              className="w-full rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm"
+              className="control"
               value={sourceType}
               onChange={(e) => setSourceType(e.target.value as FeatureRequestSourceType)}
             >
@@ -329,8 +329,8 @@ export function RequestDetailClient({ detail }: { detail: Detail }) {
       />
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6">
-          <h2 className="font-[family-name:var(--font-display)] text-2xl">
+        <section className="rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] p-6">
+          <h2 className="font-display text-2xl">
             Requested by workspaces
           </h2>
           <div className="mt-4 flex flex-wrap gap-2">
@@ -371,8 +371,8 @@ export function RequestDetailClient({ detail }: { detail: Detail }) {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6">
-          <h2 className="font-[family-name:var(--font-display)] text-2xl">Notes</h2>
+        <section className="rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] p-6">
+          <h2 className="font-display text-2xl">Notes</h2>
           <div className="mt-4 space-y-3">
             {detail.notes.map((n) => (
               <div key={n.id} className="rounded-xl bg-[var(--surface-2)] p-3 text-sm">

@@ -13,7 +13,12 @@ export default async function TriagePage({
   const signal = await getSignalForTriage(signalId);
   if (!signal) notFound();
 
-  const similar = await findSimilarFeatureRequests(signalId);
+  let similar: Awaited<ReturnType<typeof findSimilarFeatureRequests>> = [];
+  try {
+    similar = await findSimilarFeatureRequests(signalId);
+  } catch (error) {
+    console.error("Failed to load similar requests for triage", error);
+  }
 
   return (
     <TriageClient

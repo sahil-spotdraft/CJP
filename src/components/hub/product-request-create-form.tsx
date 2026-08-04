@@ -77,7 +77,7 @@ export function ProductRequestCreateForm({
   return (
     <form
       onSubmit={onSubmit}
-      className="grid gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 md:grid-cols-2"
+      className="grid gap-3 rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] p-5 md:grid-cols-2"
     >
       <div className="md:col-span-2">
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
@@ -86,7 +86,7 @@ export function ProductRequestCreateForm({
             {workspaceIds.length} selected · at least one required
           </span>
         </div>
-        <div className="grid max-h-56 gap-2 overflow-y-auto rounded-xl border border-[var(--border)] bg-white p-3 sm:grid-cols-2">
+        <div className="grid max-h-56 gap-2 overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 sm:grid-cols-2">
           {orgs.map((org) => {
             const checked = workspaceIds.includes(org.id);
             return (
@@ -121,7 +121,7 @@ export function ProductRequestCreateForm({
           id="csOwnerId"
           name="csOwnerId"
           required
-          className="w-full rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm"
+          className="control"
         >
           <option value="">Select a CS owner…</option>
           {csOwners.map((owner) => (
@@ -146,7 +146,7 @@ export function ProductRequestCreateForm({
           id="consolidationId"
           name="consolidationId"
           required
-          className="w-full rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm"
+          className="control"
         >
           <option value="">Select a consolidation…</option>
           {consolidations.map((c) => (
@@ -167,7 +167,7 @@ export function ProductRequestCreateForm({
         <select
           id="priority"
           name="priority"
-          className="w-full rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm"
+          className="control"
         >
           <option value="">None</option>
           {priorities.map((p) => (

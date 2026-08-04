@@ -1,7 +1,7 @@
 -- AlterTable
-ALTER TABLE "CustomerOrg" ADD COLUMN "csOwner" TEXT;
-ALTER TABLE "CustomerOrg" ADD COLUMN "contractEndDate" TIMESTAMP(3);
-ALTER TABLE "CustomerOrg" ADD COLUMN "lastActivityAt" TIMESTAMP(3);
+ALTER TABLE "CustomerOrg" ADD COLUMN IF NOT EXISTS "csOwner" TEXT;
+ALTER TABLE "CustomerOrg" ADD COLUMN IF NOT EXISTS "contractEndDate" TIMESTAMP(3);
+ALTER TABLE "CustomerOrg" ADD COLUMN IF NOT EXISTS "lastActivityAt" TIMESTAMP(3);
 
 -- CreateTable
 CREATE TABLE "RetentionAlert" (

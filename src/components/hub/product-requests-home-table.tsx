@@ -72,7 +72,7 @@ export function ProductRequestsHomeTable({
 
   if (requests.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface)] p-10 text-center text-[var(--ink-muted)]">
+      <div className="rounded-[var(--radius-xl)] border border-dashed border-[var(--border)] bg-[var(--surface)] p-10 text-center text-[var(--ink-muted)]">
         No feature requests yet. Create one to get started.
       </div>
     );
@@ -92,10 +92,10 @@ export function ProductRequestsHomeTable({
         />
       </div>
 
-      <div className="overflow-x-auto rounded-2xl border border-[var(--border)] bg-[var(--surface)]">
+      <div className="overflow-x-auto rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)]">
         <table className="w-full min-w-[1100px] text-left text-sm">
           <thead>
-            <tr className="border-b border-[var(--border)] bg-[var(--surface-2)] text-xs uppercase tracking-wide text-[var(--ink-muted)]">
+            <tr className="border-b border-[var(--border)] bg-[var(--surface-2)] text-label">
               <th className="px-4 py-3 font-medium">Feature request</th>
               <th className="px-4 py-3 font-medium">WS Name</th>
               <th className="px-4 py-3 font-medium">Request / Ask</th>
@@ -271,7 +271,7 @@ function ColumnHeader({
           onToggle();
         }}
         className={cn(
-          "inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 uppercase tracking-wide transition hover:bg-white/70",
+          "inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 uppercase tracking-wide transition hover:bg-[var(--surface)]/70",
           active || open ? "text-[var(--accent)]" : "text-[var(--ink-muted)]",
         )}
       >
@@ -280,7 +280,7 @@ function ColumnHeader({
       </button>
       {open ? (
         <div
-          className="absolute left-2 top-full z-20 mt-1 rounded-xl border border-[var(--border)] bg-white p-2 shadow-lg"
+          className="absolute left-2 top-full z-20 mt-1 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-2 shadow-lg"
           onClick={(e) => e.stopPropagation()}
         >
           {children}

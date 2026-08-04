@@ -26,7 +26,7 @@ export function TagCreateForm() {
   return (
     <form
       onSubmit={onSubmit}
-      className="flex flex-wrap items-end gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5"
+      className="flex flex-wrap items-end gap-3 rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] p-5"
     >
       <div className="min-w-[220px] flex-1">
         <Label htmlFor="name">Tag name</Label>

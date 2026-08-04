@@ -85,9 +85,9 @@ export function TriageClient({
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-      <section className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6">
+      <section className="space-y-4 rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="font-[family-name:var(--font-display)] text-3xl">Triage signal</h1>
+          <h1 className="font-display text-3xl">Triage signal</h1>
           <SignalStatusBadge status={signal.status} />
         </div>
 
@@ -233,9 +233,9 @@ export function TriageClient({
         )}
       </section>
 
-      <section className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6">
+      <section className="space-y-4 rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] p-6">
         <div>
-          <h2 className="font-[family-name:var(--font-display)] text-2xl">Similar requests</h2>
+          <h2 className="font-display text-2xl">Similar requests</h2>
           <p className="mt-1 text-sm text-[var(--ink-muted)]">
             Match this Slack signal to an existing request to aggregate demand across workspaces.
           </p>
@@ -269,7 +269,7 @@ export function TriageClient({
                     <Badge>{item.status.replaceAll("_", " ")}</Badge>
                     <Badge>{item.voteCount} votes</Badge>
                     {item.orgs.map((org) => (
-                      <Badge key={org.id} className="bg-white">
+                      <Badge key={org.id} className="bg-[var(--surface)]">
                         {org.name}
                       </Badge>
                     ))}
