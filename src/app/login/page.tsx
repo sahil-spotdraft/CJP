@@ -34,21 +34,36 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
-      <div className="w-full max-w-md rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-8 shadow-sm">
-        <h1 className="font-[family-name:var(--font-display)] text-3xl text-[var(--ink)]">
+      <div className="w-full max-w-md rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] p-8 shadow-[var(--shadow-sm)]">
+        <p className="text-eyebrow">Feature hub</p>
+        <h1 className="mt-1 font-display text-3xl tracking-tight text-[var(--ink)]">
           Moonshot
         </h1>
         <p className="mt-2 text-sm text-[var(--ink-muted)]">
           Sign in to triage feature requests from customer Slack channels.
         </p>
-        <form onSubmit={onSubmit} className="mt-8 space-y-4">
+        <form onSubmit={onSubmit} className="mt-8 space-y-4" autoComplete="on">
           <div>
             <Label htmlFor="email">Email</Label>
-            <Input id="email" name="email" type="email" required defaultValue="admin@moonshot.local" />
+            <Input
+              id="email"
+              name="email"
+              type="email"
+              required
+              autoComplete="username"
+              placeholder="you@company.com"
+            />
           </div>
           <div>
             <Label htmlFor="password">Password</Label>
-            <Input id="password" name="password" type="password" required defaultValue="admin123" />
+            <Input
+              id="password"
+              name="password"
+              type="password"
+              required
+              autoComplete="current-password"
+              placeholder="••••••••"
+            />
           </div>
           {error ? <p className="text-sm text-[var(--danger)]">{error}</p> : null}
           <Button type="submit" className="w-full" disabled={loading}>

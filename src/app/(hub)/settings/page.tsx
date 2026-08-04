@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { getAppSettings } from "@/lib/services/settings";
 import { SettingsForm } from "@/components/hub/settings-form";
+import { PageHeader } from "@/components/ui/page-header";
 
 export const dynamic = "force-dynamic";
 
@@ -13,12 +14,10 @@ export default async function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-[family-name:var(--font-display)] text-3xl">Settings</h1>
-        <p className="mt-1 text-[var(--ink-muted)]">
-          Classifier threshold, Slack thread replies, and watched channels.
-        </p>
-      </div>
+      <PageHeader
+        title="Settings"
+        description="Classifier threshold, Slack thread replies, and watched channels."
+      />
 
       <SettingsForm
         settings={{

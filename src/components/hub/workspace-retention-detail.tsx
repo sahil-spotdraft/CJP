@@ -1,65 +1,58 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/ui/page-header";
+import { money, readableLabel } from "@/lib/format";
 import type { WorkspaceRetentionDetail as Detail } from "@/lib/services/retention";
-
-function money(n: number) {
-  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1000) return `$${Math.round(n / 1000)}K`;
-  return `$${Math.round(n).toLocaleString()}`;
-}
 
 function formatDate(value: string | null) {
   if (!value) return "—";
   return new Date(value).toLocaleDateString();
 }
 
-function readable(value: string) {
-  return value
-    .replaceAll("_", " ")
-    .toLowerCase()
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
-}
-
 function renewalTone(band: string) {
-  if (band === "HIGH") return "border-emerald-200 bg-emerald-50 text-emerald-950";
-  if (band === "MEDIUM") return "border-amber-200 bg-amber-50 text-amber-950";
-  return "border-rose-200 bg-rose-50 text-rose-950";
+  if (band === "HIGH") {
+    return "border-[var(--success)]/25 bg-[var(--success-soft)] text-[var(--success)]";
+  }
+  if (band === "MEDIUM") {
+    return "border-[var(--warning)]/25 bg-[var(--warning-soft)] text-[var(--warning)]";
+  }
+  return "border-[var(--danger)]/25 bg-[var(--danger-soft)] text-[var(--danger)]";
 }
 
 function activityTone(status: string) {
   if (status === "STOPPED" || status === "SHARPLY_REDUCED") {
-    return "bg-rose-100 text-rose-900";
+    return "bg-[var(--danger-soft)] text-[var(--danger)]";
   }
-  if (status === "REDUCED") return "bg-amber-100 text-amber-900";
-  if (status === "INCREASED") return "bg-emerald-100 text-emerald-900";
+  if (status === "REDUCED") return "bg-[var(--warning-soft)] text-[var(--warning)]";
+  if (status === "INCREASED") return "bg-[var(--success-soft)] text-[var(--success)]";
   return "bg-[var(--surface-2)] text-[var(--ink-muted)]";
 }
 
 export function WorkspaceRetentionDetail({ data }: Readonly<{ data: Detail }>) {
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-[0.16em] text-[var(--accent)]">
-            Workspace detail
-          </p>
-          <h1 className="font-[family-name:var(--font-display)] text-3xl">
-            {data.org.name}
-          </h1>
-          <p className="mt-1 text-sm text-[var(--ink-muted)]">
+      <PageHeader
+        eyebrow="Workspace detail"
+        title={data.org.name}
+        description={
+          <>
             WS slug <span className="font-mono">{data.org.slug}</span> · Owner{" "}
             {data.org.csOwner} · {money(data.org.arr)} ARR
-          </p>
-        </div>
-        <div className={`rounded-2xl border px-4 py-3 ${renewalTone(data.renewal.band)}`}>
-          <p className="text-xs uppercase tracking-wide opacity-80">Renewal outlook</p>
-          <p className="text-xl font-semibold">
-            {data.renewal.label} · {data.renewal.score}/100
-          </p>
-        </div>
-      </div>
+          </>
+        }
+        actions={
+          <div
+            className={`rounded-[var(--radius-xl)] border px-4 py-3 ${renewalTone(data.renewal.band)}`}
+          >
+            <p className="text-label opacity-80">Renewal outlook</p>
+            <p className="font-display text-xl font-semibold">
+              {data.renewal.label} · {data.renewal.score}/100
+            </p>
+          </div>
+        }
+      />
 
-      <section className={`rounded-2xl border px-5 py-4 ${renewalTone(data.renewal.band)}`}>
+      <section className={`rounded-[var(--radius-xl)] border px-5 py-4 ${renewalTone(data.renewal.band)}`}>
         <p className="font-medium">{data.renewal.summary}</p>
         <div className="mt-3 flex flex-wrap gap-2 text-sm">
           <Badge>
@@ -72,13 +65,15 @@ export function WorkspaceRetentionDetail({ data }: Readonly<{ data: Detail }>) {
               ? ` · quiet ${data.org.daysSinceActivity}d`
               : " · never recorded"}
           </Badge>
-          {data.org.isDark ? <Badge className="bg-rose-100 text-rose-900">Dark account</Badge> : null}
+          {data.org.isDark ? (
+            <Badge className="bg-[var(--danger-soft)] text-[var(--danger)]">Dark account</Badge>
+          ) : null}
         </div>
       </section>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
-          <h2 className="font-[family-name:var(--font-display)] text-xl">
+        <section className="rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] p-5">
+          <h2 className="font-display text-xl">
             Activity that stopped or reduced
           </h2>
           <p className="mt-1 text-sm text-[var(--ink-muted)]">
@@ -101,7 +96,7 @@ export function WorkspaceRetentionDetail({ data }: Readonly<{ data: Detail }>) {
                     </p>
                   </div>
                   <Badge className={activityTone(row.status)}>
-                    {readable(row.status)}
+                    {readableLabel(row.status)}
                   </Badge>
                 </div>
               ))
@@ -113,8 +108,8 @@ export function WorkspaceRetentionDetail({ data }: Readonly<{ data: Detail }>) {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
-          <h2 className="font-[family-name:var(--font-display)] text-xl">
+        <section className="rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] p-5">
+          <h2 className="font-display text-xl">
             What they are expecting
           </h2>
           <div className="mt-4 space-y-2">
@@ -126,7 +121,7 @@ export function WorkspaceRetentionDetail({ data }: Readonly<{ data: Detail }>) {
                 >
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge>{item.kind}</Badge>
-                    <Badge>{readable(item.priority)}</Badge>
+                    <Badge>{readableLabel(item.priority)}</Badge>
                   </div>
                   <p className="mt-2 font-medium">{item.title}</p>
                   <p className="mt-1 text-[var(--ink-muted)]">{item.detail}</p>
@@ -139,8 +134,8 @@ export function WorkspaceRetentionDetail({ data }: Readonly<{ data: Detail }>) {
         </section>
       </div>
 
-      <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
-        <h2 className="font-[family-name:var(--font-display)] text-xl">
+      <section className="rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] p-5">
+        <h2 className="font-display text-xl">
           Full workspace activity
         </h2>
         <div className="mt-4 overflow-x-auto">
@@ -166,7 +161,7 @@ export function WorkspaceRetentionDetail({ data }: Readonly<{ data: Detail }>) {
                   </td>
                   <td className="px-3 py-3">
                     <Badge className={activityTone(row.status)}>
-                      {readable(row.status)}
+                      {readableLabel(row.status)}
                     </Badge>
                   </td>
                 </tr>
@@ -176,8 +171,8 @@ export function WorkspaceRetentionDetail({ data }: Readonly<{ data: Detail }>) {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
-        <h2 className="font-[family-name:var(--font-display)] text-xl">
+      <section className="rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] p-5">
+        <h2 className="font-display text-xl">
           Features they are asking for
         </h2>
         <div className="mt-4 overflow-x-auto">
@@ -213,9 +208,9 @@ export function WorkspaceRetentionDetail({ data }: Readonly<{ data: Detail }>) {
                     <td className="px-3 py-3">{ask.consolidation}</td>
                     <td className="px-3 py-3">{ask.feature}</td>
                     <td className="px-3 py-3">
-                      <Badge>{readable(ask.priority)}</Badge>
+                      <Badge>{readableLabel(ask.priority)}</Badge>
                     </td>
-                    <td className="px-3 py-3">{readable(ask.status)}</td>
+                    <td className="px-3 py-3">{readableLabel(ask.status)}</td>
                     <td className="max-w-[240px] px-3 py-3 text-[var(--ink-muted)]">
                       {ask.expectation}
                     </td>

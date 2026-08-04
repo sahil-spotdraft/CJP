@@ -31,13 +31,13 @@ export default async function OrgDetailPage({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-[family-name:var(--font-display)] text-3xl">{org.name}</h1>
+        <h1 className="font-display text-3xl">{org.name}</h1>
         <p className="mt-1 text-[var(--ink-muted)]">
           Workspace slug: {org.slug} · WS ID: <span className="font-mono">{org.id}</span>
         </p>
       </div>
 
-      <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6">
+      <section className="rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] p-6">
         <h2 className="text-xl font-semibold">Account ARR</h2>
         <p className="mt-1 text-sm text-[var(--ink-muted)]">
           Drives the ARR rollup shown on the Consolidation view for every feature this workspace asks for.
@@ -47,7 +47,7 @@ export default async function OrgDetailPage({
         </div>
       </section>
 
-      <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6">
+      <section className="rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] p-6">
         <h2 className="text-xl font-semibold">Slack channels</h2>
         <div className="mt-4 space-y-2">
           {org.channels.map((channel) => (
@@ -59,7 +59,7 @@ export default async function OrgDetailPage({
                 <span className="font-medium">#{channel.name}</span>
                 <span className="ml-2 text-[var(--ink-muted)]">{channel.channelId}</span>
               </div>
-              <Badge className={channel.enabled ? "bg-emerald-100 text-emerald-800" : ""}>
+              <Badge className={channel.enabled ? "bg-[var(--success-soft)] text-[var(--success)]" : ""}>
                 {channel.enabled ? "Watching" : "Paused"}
               </Badge>
             </div>
@@ -75,7 +75,7 @@ export default async function OrgDetailPage({
         {org.signals.map((signal) => (
           <div
             key={signal.id}
-            className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4"
+            className="rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] p-4"
           >
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="font-medium">{signal.aiTitle || "Untitled"}</div>

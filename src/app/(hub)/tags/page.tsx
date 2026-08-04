@@ -13,7 +13,7 @@ export default async function TagsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-[family-name:var(--font-display)] text-3xl">Tags</h1>
+        <h1 className="font-display text-3xl">Tags</h1>
         <p className="mt-1 text-[var(--ink-muted)]">Organize feature requests by theme.</p>
       </div>
       <TagCreateForm />

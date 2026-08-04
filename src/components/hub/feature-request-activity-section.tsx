@@ -209,8 +209,8 @@ export function FeatureRequestActivitySection({
   }
 
   return (
-    <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6">
-      <h2 className="font-[family-name:var(--font-display)] text-2xl">Activity</h2>
+    <section className="rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] p-6">
+      <h2 className="font-display text-2xl">Activity</h2>
       <p className="mt-1 text-sm text-[var(--ink-muted)]">
         Message-style updates from Slack, Jira, or the team. Level marks concern so you can scan feature health.
       </p>
@@ -224,7 +224,11 @@ export function FeatureRequestActivitySection({
           return (
             <article
               key={item.id}
+<<<<<<< HEAD
               className={`rounded-2xl border p-4 ${levelRowClass(level)}`}
+=======
+              className="rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface-2)]/70 p-4"
+>>>>>>> e0757e0e00baef39fdf25b0a9cfe4caf308ac8d3
             >
               <div className="flex items-start gap-3">
                 <div
@@ -260,9 +264,13 @@ export function FeatureRequestActivitySection({
                       {formatOccurredAt(item.occurredAt)}
                     </time>
                   </div>
+<<<<<<< HEAD
                   <div
                     className={`mt-2 rounded-xl border bg-white px-3.5 py-2.5 shadow-sm ${levelMessageClass(level)}`}
                   >
+=======
+                  <div className="mt-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3.5 py-2.5 shadow-sm">
+>>>>>>> e0757e0e00baef39fdf25b0a9cfe4caf308ac8d3
                     <p className="text-sm font-medium text-[var(--ink)]">{item.title}</p>
                     {item.body ? (
                       <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-[var(--ink-muted)]">
@@ -289,14 +297,14 @@ export function FeatureRequestActivitySection({
         ) : null}
       </div>
 
-      <div className="mt-5 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)]/50 p-4">
+      <div className="mt-5 rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface-2)]/50 p-4">
         <p className="mb-3 text-sm font-medium text-[var(--ink)]">Post a message</p>
         <div className="grid gap-3 md:grid-cols-2">
           <div>
             <Label htmlFor="activityKind">Kind</Label>
             <select
               id="activityKind"
-              className="w-full rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm"
+              className="control"
               value={kind}
               onChange={(e) => setKind(e.target.value as FeatureRequestActivityKind)}
             >
@@ -335,7 +343,7 @@ export function FeatureRequestActivitySection({
             <Label htmlFor="activitySource">Linked source (optional)</Label>
             <select
               id="activitySource"
-              className="w-full rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm"
+              className="control"
               value={sourceId}
               onChange={(e) => setSourceId(e.target.value)}
             >
