@@ -1,20 +1,46 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ClmPriority, ClmRequestStatus } from "@prisma/client";
+import {
+  ClmPriority,
+  ClmRequestStatus,
+  FeatureRequestSourceType,
+} from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input, Label, Textarea } from "@/components/ui/input";
 import { ClmPriorityBadge, ClmStatusBadge } from "@/components/hub/status-badge";
+import { FeatureRequestActivitySection } from "@/components/hub/feature-request-activity-section";
+import type { ActivityItem } from "@/components/hub/feature-request-activity-section";
 import { cn } from "@/lib/utils";
 
 const statuses = Object.values(ClmRequestStatus);
 const priorities = Object.values(ClmPriority);
+const sourceTypes = Object.values(FeatureRequestSourceType);
 
 type OrgOption = { id: string; name: string; arr: number | null };
 type ConsolidationOption = { id: string; name: string };
+
+type Source = {
+  id: string;
+  type: FeatureRequestSourceType;
+  label: string;
+  url: string;
+  externalId: string | null;
+};
+
+type Activity = ActivityItem;
+
+type LinkedFeature = {
+  id: string;
+  title: string;
+  status: string;
+  dueDate: string | null;
+  sources: Source[];
+  activities: Activity[];
+};
 
 type Detail = {
   id: string;
@@ -39,18 +65,25 @@ type RequestingCustomer = {
   ask: string | null;
 };
 
+function toDateInputValue(iso: string | null) {
+  if (!iso) return "";
+  return iso.slice(0, 10);
+}
+
 export function FeatureRequestDetailClient({
   detail,
   orgs,
   consolidations,
   csOwners,
   requestingCustomers,
+  linkedFeature,
 }: Readonly<{
   detail: Detail;
   orgs: OrgOption[];
   consolidations: ConsolidationOption[];
   csOwners: string[];
   requestingCustomers: RequestingCustomer[];
+  linkedFeature: LinkedFeature | null;
 }>) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
@@ -68,6 +101,15 @@ export function FeatureRequestDetailClient({
   const [csNotes, setCsNotes] = useState(detail.csNotes ?? "");
   const [priority, setPriority] = useState(detail.priority ?? "");
   const [status, setStatus] = useState(detail.status);
+
+  const [dueDate, setDueDate] = useState(toDateInputValue(linkedFeature?.dueDate ?? null));
+  const [sourceType, setSourceType] = useState<FeatureRequestSourceType>("SLACK");
+  const [sourceLabel, setSourceLabel] = useState("");
+  const [sourceUrl, setSourceUrl] = useState("");
+
+  useEffect(() => {
+    setDueDate(toDateInputValue(linkedFeature?.dueDate ?? null));
+  }, [linkedFeature?.dueDate, linkedFeature?.id]);
 
   function resetFromDetail() {
     setAsk(detail.ask);
@@ -141,6 +183,57 @@ export function FeatureRequestDetailClient({
     } finally {
       setBusy(false);
     }
+  }
+
+  async function saveDueDate() {
+    if (!linkedFeature) return;
+    setBusy(true);
+    setError(null);
+    const res = await fetch(`/api/requests/${linkedFeature.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dueDate: dueDate || null }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setError(data.error || "Failed to save due date");
+    }
+    setBusy(false);
+    router.refresh();
+  }
+
+  async function addSource() {
+    if (!linkedFeature || !sourceLabel.trim() || !sourceUrl.trim()) return;
+    setBusy(true);
+    setError(null);
+    const res = await fetch(`/api/requests/${linkedFeature.id}/sources`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: sourceType,
+        label: sourceLabel,
+        url: sourceUrl,
+      }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setError(data.error || "Failed to add source");
+    } else {
+      setSourceLabel("");
+      setSourceUrl("");
+    }
+    setBusy(false);
+    router.refresh();
+  }
+
+  async function removeSource(sourceId: string) {
+    if (!linkedFeature) return;
+    setBusy(true);
+    await fetch(`/api/requests/${linkedFeature.id}/sources/${sourceId}`, {
+      method: "DELETE",
+    });
+    setBusy(false);
+    router.refresh();
   }
 
   if (editing) {
@@ -295,11 +388,18 @@ export function FeatureRequestDetailClient({
           <div className="flex flex-wrap items-center gap-2">
             <ClmStatusBadge status={detail.status} />
             {detail.priority ? <ClmPriorityBadge priority={detail.priority} /> : null}
+            {linkedFeature?.dueDate ? (
+              <Badge className="bg-[var(--accent-soft)] text-[var(--accent)]">
+                Due {toDateInputValue(linkedFeature.dueDate)}
+              </Badge>
+            ) : null}
             <Button type="button" variant="secondary" onClick={startEdit}>
               Edit
             </Button>
           </div>
         </div>
+
+        {error ? <p className="mt-3 text-sm text-[var(--danger)]">{error}</p> : null}
 
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Field label="CS Owner" value={detail.csOwner || "—"} />
@@ -319,12 +419,12 @@ export function FeatureRequestDetailClient({
           </div>
           <div className="sm:col-span-2 lg:col-span-3">
             <p className="text-xs uppercase tracking-wide text-[var(--ink-muted)]">Linked feature request</p>
-            {detail.featureRequest ? (
+            {linkedFeature || detail.featureRequest ? (
               <Link
-                href={`/requests/${detail.featureRequest.id}`}
+                href={`/requests/${(linkedFeature ?? detail.featureRequest)!.id}`}
                 className="mt-1 inline-block font-medium text-[var(--accent)] underline"
               >
-                {detail.featureRequest.title}
+                {(linkedFeature ?? detail.featureRequest)!.title}
               </Link>
             ) : (
               <p className="mt-1 text-[var(--ink-muted)]">Not linked yet</p>
@@ -382,6 +482,133 @@ export function FeatureRequestDetailClient({
           </div>
         ) : null}
       </div>
+
+      {linkedFeature ? (
+        <>
+          <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h2 className="font-[family-name:var(--font-display)] text-2xl">Due date</h2>
+                <p className="mt-1 text-sm text-[var(--ink-muted)]">
+                  Target date on the linked feature request
+                </p>
+              </div>
+              <div className="flex flex-wrap items-end gap-2">
+                <div>
+                  <Label htmlFor="linkedDueDate">Due date</Label>
+                  <Input
+                    id="linkedDueDate"
+                    type="date"
+                    value={dueDate}
+                    onChange={(e) => setDueDate(e.target.value)}
+                  />
+                </div>
+                <Button type="button" onClick={saveDueDate} disabled={busy}>
+                  Save due date
+                </Button>
+              </div>
+            </div>
+          </section>
+
+          <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6">
+            <h2 className="font-[family-name:var(--font-display)] text-2xl">Sources</h2>
+            <p className="mt-1 text-sm text-[var(--ink-muted)]">
+              Slack channels or Jira tickets linked to this feature.
+            </p>
+            <div className="mt-4 space-y-2">
+              {linkedFeature.sources.map((source) => (
+                <div
+                  key={source.id}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[var(--border)] px-3 py-2"
+                >
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    <Badge>{source.type}</Badge>
+                    <a
+                      href={source.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="truncate text-sm font-medium text-[var(--accent)] underline"
+                    >
+                      {source.label}
+                    </a>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    disabled={busy}
+                    onClick={() => removeSource(source.id)}
+                    className="text-[var(--danger)]"
+                  >
+                    Remove
+                  </Button>
+                </div>
+              ))}
+              {linkedFeature.sources.length === 0 ? (
+                <p className="text-sm text-[var(--ink-muted)]">No sources yet.</p>
+              ) : null}
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-4">
+              <div>
+                <Label htmlFor="sourceType">Type</Label>
+                <select
+                  id="sourceType"
+                  className="w-full rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm"
+                  value={sourceType}
+                  onChange={(e) => setSourceType(e.target.value as FeatureRequestSourceType)}
+                >
+                  {sourceTypes.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <Label htmlFor="sourceLabel">Label</Label>
+                <Input
+                  id="sourceLabel"
+                  placeholder="#product or PROJ-123"
+                  value={sourceLabel}
+                  onChange={(e) => setSourceLabel(e.target.value)}
+                />
+              </div>
+              <div className="md:col-span-2">
+                <Label htmlFor="sourceUrl">URL</Label>
+                <Input
+                  id="sourceUrl"
+                  placeholder="https://..."
+                  value={sourceUrl}
+                  onChange={(e) => setSourceUrl(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="mt-3">
+              <Button
+                variant="secondary"
+                disabled={busy || !sourceLabel.trim() || !sourceUrl.trim()}
+                onClick={addSource}
+              >
+                Add source
+              </Button>
+            </div>
+          </section>
+
+          <FeatureRequestActivitySection
+            featureRequestId={linkedFeature.id}
+            activities={linkedFeature.activities}
+            sources={linkedFeature.sources}
+          />
+        </>
+      ) : (
+        <section className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface)] p-6">
+          <h2 className="font-[family-name:var(--font-display)] text-2xl">
+            Due date, sources & activity
+          </h2>
+          <p className="mt-2 text-sm text-[var(--ink-muted)]">
+            Link this product request (or its consolidation) to a feature request to manage due
+            date, Slack/Jira sources, and activity here.
+          </p>
+        </section>
+      )}
     </div>
   );
 }

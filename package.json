@@ -15,6 +15,7 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
     "demo:suggestion": "tsx scripts/seed-demo-suggestion.ts",
+    "demo:activity": "tsx scripts/seed-demo-activity.ts",
     "postinstall": "prisma generate"
   },
   "prisma": {

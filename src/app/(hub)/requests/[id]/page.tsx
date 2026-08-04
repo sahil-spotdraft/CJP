@@ -30,6 +30,14 @@ export default async function RequestDetailPage({
         consolidation: {
           include: { requests: { include: { org: true } } },
         },
+        sources: { orderBy: { createdAt: "desc" } },
+        activities: {
+          include: {
+            author: { select: { id: true, name: true, email: true } },
+            source: true,
+          },
+          orderBy: { occurredAt: "desc" },
+        },
       },
     }),
     prisma.roadmapItem.findMany({ orderBy: { title: "asc" } }),
@@ -54,6 +62,7 @@ export default async function RequestDetailPage({
         title: request.title,
         summary: request.summary,
         status: request.status,
+        dueDate: request.dueDate?.toISOString() ?? null,
         tags: request.tags,
         votes: request.votes,
         notes: request.notes.map((n) => ({
@@ -63,6 +72,31 @@ export default async function RequestDetailPage({
         signals: request.signals.map((s) => ({
           ...s,
           createdAt: s.createdAt.toISOString(),
+        })),
+        sources: request.sources.map((s) => ({
+          id: s.id,
+          type: s.type,
+          label: s.label,
+          url: s.url,
+          externalId: s.externalId,
+        })),
+        activities: request.activities.map((a) => ({
+          id: a.id,
+          kind: a.kind,
+          title: a.title,
+          body: a.body,
+          occurredAt: a.occurredAt.toISOString(),
+          sourceId: a.sourceId,
+          source: a.source
+            ? {
+                id: a.source.id,
+                type: a.source.type,
+                label: a.source.label,
+                url: a.source.url,
+                externalId: a.source.externalId,
+              }
+            : null,
+          author: a.author,
         })),
         workspaces,
         roadmap: request.roadmap,

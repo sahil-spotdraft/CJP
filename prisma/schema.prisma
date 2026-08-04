@@ -29,6 +29,19 @@ enum SuggestionTriageStatus {
   DISMISSED
 }
 
+enum FeatureRequestSourceType {
+  SLACK
+  JIRA
+}
+
+enum FeatureRequestActivityKind {
+  NOTE
+  SLACK
+  JIRA
+  STATUS
+  SYSTEM
+}
+
 enum ClassificationJobStatus {
   PENDING
   COMPLETED
@@ -64,6 +77,7 @@ model User {
   updatedAt    DateTime             @updatedAt
   notes        FeatureRequestNote[]
   votes        Vote[]
+  activities   FeatureRequestActivity[]
 }
 
 model CustomerOrg {
@@ -98,6 +112,7 @@ model FeatureRequest {
   title       String
   summary     String
   status      FeatureRequestStatus @default(NEW)
+  dueDate     DateTime?
   embedding   Json?
   roadmapId   String?
   roadmap     RoadmapItem?         @relation(fields: [roadmapId], references: [id], onDelete: SetNull)
@@ -107,6 +122,8 @@ model FeatureRequest {
   notes       FeatureRequestNote[]
   tags        FeatureRequestTag[]
   votes       Vote[]
+  sources     FeatureRequestSource[]
+  activities  FeatureRequestActivity[]
   consolidation   Consolidation?
   productRequests ProductRequest[]
   suggestionMatches SuggestionMatch[]
@@ -114,6 +131,41 @@ model FeatureRequest {
 
   @@index([status])
   @@index([roadmapId])
+  @@index([dueDate])
+}
+
+model FeatureRequestSource {
+  id               String                   @id @default(cuid())
+  featureRequestId String
+  featureRequest   FeatureRequest           @relation(fields: [featureRequestId], references: [id], onDelete: Cascade)
+  type             FeatureRequestSourceType
+  label            String
+  url              String
+  externalId       String?
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+  activities       FeatureRequestActivity[]
+
+  @@index([featureRequestId])
+  @@index([type])
+}
+
+model FeatureRequestActivity {
+  id               String                      @id @default(cuid())
+  featureRequestId String
+  featureRequest   FeatureRequest              @relation(fields: [featureRequestId], references: [id], onDelete: Cascade)
+  kind             FeatureRequestActivityKind  @default(NOTE)
+  title            String
+  body             String?
+  occurredAt       DateTime                    @default(now())
+  sourceId         String?
+  source           FeatureRequestSource?       @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  authorId         String?
+  author           User?                       @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  createdAt        DateTime                    @default(now())
+
+  @@index([featureRequestId, occurredAt])
+  @@index([sourceId])
 }
 
 // Demo "suggestion" from a Slack ask — same core fields as FeatureRequest,

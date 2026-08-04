@@ -54,6 +54,25 @@ export default async function FeatureRequestDetailPage({
     a.name.localeCompare(b.name),
   );
 
+  const linkedFeatureRequestId =
+    raw.featureRequestId ?? raw.consolidation?.featureRequestId ?? null;
+
+  const linkedFeature = linkedFeatureRequestId
+    ? await prisma.featureRequest.findUnique({
+        where: { id: linkedFeatureRequestId },
+        include: {
+          sources: { orderBy: { createdAt: "desc" } },
+          activities: {
+            include: {
+              author: { select: { id: true, name: true, email: true } },
+              source: true,
+            },
+            orderBy: { occurredAt: "desc" },
+          },
+        },
+      })
+    : null;
+
   return (
     <div className="space-y-6">
       <div>
@@ -68,6 +87,41 @@ export default async function FeatureRequestDetailPage({
         consolidations={consolidations.map((c) => ({ id: c.id, name: c.name }))}
         csOwners={csOwners}
         requestingCustomers={requestingCustomers}
+        linkedFeature={
+          linkedFeature
+            ? {
+                id: linkedFeature.id,
+                title: linkedFeature.title,
+                status: linkedFeature.status,
+                dueDate: linkedFeature.dueDate?.toISOString() ?? null,
+                sources: linkedFeature.sources.map((s) => ({
+                  id: s.id,
+                  type: s.type,
+                  label: s.label,
+                  url: s.url,
+                  externalId: s.externalId,
+                })),
+                activities: linkedFeature.activities.map((a) => ({
+                  id: a.id,
+                  kind: a.kind,
+                  title: a.title,
+                  body: a.body,
+                  occurredAt: a.occurredAt.toISOString(),
+                  sourceId: a.sourceId,
+                  source: a.source
+                    ? {
+                        id: a.source.id,
+                        type: a.source.type,
+                        label: a.source.label,
+                        url: a.source.url,
+                        externalId: a.source.externalId,
+                      }
+                    : null,
+                  author: a.author,
+                })),
+              }
+            : null
+        }
       />
     </div>
   );

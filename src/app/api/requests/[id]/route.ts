@@ -37,6 +37,13 @@ const patchSchema = z.object({
     .enum(["NEW", "TRIAGED", "PLANNED", "IN_PROGRESS", "SHIPPED", "DECLINED"])
     .optional(),
   roadmapId: z.string().nullable().optional(),
+  dueDate: z
+    .union([
+      z.string().datetime(),
+      z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      z.null(),
+    ])
+    .optional(),
 });
 
 export async function PATCH(
@@ -62,7 +69,21 @@ export async function PATCH(
   const request = await prisma.featureRequest.update({
     where: { id },
     data: {
-      ...body.data,
+      title: body.data.title,
+      summary: body.data.summary,
+      status: body.data.status,
+      roadmapId: body.data.roadmapId,
+      ...(body.data.dueDate !== undefined
+        ? {
+            dueDate: body.data.dueDate
+              ? new Date(
+                  /^\d{4}-\d{2}-\d{2}$/.test(body.data.dueDate)
+                    ? `${body.data.dueDate}T12:00:00.000Z`
+                    : body.data.dueDate,
+                )
+              : null,
+          }
+        : {}),
       ...(embedding ? { embedding } : {}),
     },
     include: {
@@ -71,6 +92,8 @@ export async function PATCH(
       notes: true,
       roadmap: true,
       signals: { include: { org: true, channel: true } },
+      sources: true,
+      activities: true,
     },
   });
 
