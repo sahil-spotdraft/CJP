@@ -15,6 +15,7 @@ export const config = {
     "/product-requests/:path*",
     "/consolidation/:path*",
     "/analytics/:path*",
+    "/retention/:path*",
     "/orgs/:path*",
     "/roadmap/:path*",
     "/tags/:path*",

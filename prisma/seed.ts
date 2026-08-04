@@ -9,11 +9,31 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
-async function upsertOrg(params: { slug: string; name: string; arr: number }) {
+async function upsertOrg(params: {
+  slug: string;
+  name: string;
+  arr: number;
+  csOwner?: string;
+  contractEndDate?: Date | null;
+  lastActivityAt?: Date | null;
+}) {
   return prisma.customerOrg.upsert({
     where: { slug: params.slug },
-    update: { name: params.name, arr: params.arr },
-    create: { name: params.name, slug: params.slug, arr: params.arr },
+    update: {
+      name: params.name,
+      arr: params.arr,
+      csOwner: params.csOwner ?? null,
+      contractEndDate: params.contractEndDate ?? null,
+      lastActivityAt: params.lastActivityAt ?? null,
+    },
+    create: {
+      name: params.name,
+      slug: params.slug,
+      arr: params.arr,
+      csOwner: params.csOwner ?? null,
+      contractEndDate: params.contractEndDate ?? null,
+      lastActivityAt: params.lastActivityAt ?? null,
+    },
   });
 }
 
@@ -88,15 +108,62 @@ async function main() {
     },
   });
 
+  const now = new Date();
+  const daysAgo = (days: number) => new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+  const daysFromNow = (days: number) => new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+
   // Keep existing demo orgs for Slack inbox flow
-  const acme = await upsertOrg({ slug: "acme", name: "Acme Corp", arr: 345800 });
-  const globex = await upsertOrg({ slug: "globex", name: "Globex", arr: 237750 });
+  const acme = await upsertOrg({
+    slug: "acme",
+    name: "Acme Corp",
+    arr: 345800,
+    csOwner: "Priya Nair",
+    contractEndDate: daysFromNow(24),
+    lastActivityAt: daysAgo(3),
+  });
+  const globex = await upsertOrg({
+    slug: "globex",
+    name: "Globex",
+    arr: 237750,
+    csOwner: "Rahul Mehta",
+    contractEndDate: daysFromNow(52),
+    lastActivityAt: daysAgo(8),
+  });
 
   // Accounts from the Product Requests CLM sheet screenshot
-  const versant = await upsertOrg({ slug: "versant", name: "Versant", arr: 166688 });
-  const ocrolus = await upsertOrg({ slug: "ocrolus", name: "Ocrolus", arr: 72250 });
-  const twelveLabs = await upsertOrg({ slug: "twelve-labs", name: "Twelve Labs", arr: 35150 });
-  const tennr = await upsertOrg({ slug: "tennr", name: "Tennr", arr: 29600 });
+  // Dark cohort (~$137K ARR) mirrors the silent-churn near-miss story.
+  const versant = await upsertOrg({
+    slug: "versant",
+    name: "Versant",
+    arr: 166688,
+    csOwner: "Shubham",
+    contractEndDate: daysFromNow(81),
+    lastActivityAt: daysAgo(12),
+  });
+  const ocrolus = await upsertOrg({
+    slug: "ocrolus",
+    name: "Ocrolus",
+    arr: 72250,
+    csOwner: "Pooja",
+    contractEndDate: daysFromNow(110),
+    lastActivityAt: daysAgo(47),
+  });
+  const twelveLabs = await upsertOrg({
+    slug: "twelve-labs",
+    name: "Twelve Labs",
+    arr: 35150,
+    csOwner: "Vanshika",
+    contractEndDate: daysFromNow(18),
+    lastActivityAt: daysAgo(41),
+  });
+  const tennr = await upsertOrg({
+    slug: "tennr",
+    name: "Tennr",
+    arr: 29600,
+    csOwner: "Vanshika",
+    contractEndDate: null,
+    lastActivityAt: daysAgo(63),
+  });
 
   const acmeChannel = await prisma.slackChannel.upsert({
     where: { channelId: "C_ACME_SUPPORT" },
@@ -313,6 +380,87 @@ async function main() {
     timeline: "2026-Q4",
     csNotes: "Came up during QBR renewal discussion.",
   });
+
+  const activityCatalog = [
+    { key: "logins", label: "Logins" },
+    { key: "contracts_created", label: "Contracts created" },
+    { key: "approvals", label: "Approvals" },
+    { key: "reviews", label: "Reviews" },
+    { key: "workflow_published", label: "Workflows published" },
+    { key: "reports_generated", label: "Reports generated" },
+    { key: "key_provisions", label: "Key Provisions used" },
+    { key: "intake_forms", label: "Intake forms submitted" },
+  ] as const;
+
+  async function seedActivity(
+    orgId: string,
+    profile: "healthy" | "softening" | "dark",
+  ) {
+    const profiles: Record<typeof profile, Array<[number, number]>> = {
+      healthy: [
+        [48, 44],
+        [22, 20],
+        [35, 33],
+        [18, 17],
+        [6, 5],
+        [9, 8],
+        [14, 12],
+        [11, 10],
+      ],
+      softening: [
+        [21, 40],
+        [8, 19],
+        [12, 28],
+        [5, 16],
+        [1, 4],
+        [2, 7],
+        [3, 11],
+        [4, 9],
+      ],
+      dark: [
+        [2, 36],
+        [0, 14],
+        [1, 22],
+        [0, 12],
+        [0, 3],
+        [0, 6],
+        [0, 9],
+        [1, 8],
+      ],
+    };
+
+    const values = profiles[profile];
+    for (let i = 0; i < activityCatalog.length; i += 1) {
+      const item = activityCatalog[i];
+      const [currentCount, priorCount] = values[i];
+      await prisma.workspaceActivityMetric.upsert({
+        where: {
+          orgId_activityKey: { orgId, activityKey: item.key },
+        },
+        update: {
+          label: item.label,
+          currentCount,
+          priorCount,
+          periodDays: 30,
+        },
+        create: {
+          orgId,
+          activityKey: item.key,
+          label: item.label,
+          currentCount,
+          priorCount,
+          periodDays: 30,
+        },
+      });
+    }
+  }
+
+  await seedActivity(acme.id, "healthy");
+  await seedActivity(globex.id, "softening");
+  await seedActivity(versant.id, "softening");
+  await seedActivity(ocrolus.id, "dark");
+  await seedActivity(twelveLabs.id, "dark");
+  await seedActivity(tennr.id, "dark");
 
   console.log(`Seed complete. Admin login: ${email} / ${password}`);
 }

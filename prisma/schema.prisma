@@ -85,12 +85,50 @@ model CustomerOrg {
   name            String
   slug            String           @unique
   arr             Float?
+  csOwner         String?
+  contractEndDate DateTime?
+  lastActivityAt  DateTime?
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   channels        SlackChannel[]
   signals         FeatureSignal[]
   productRequests ProductRequest[]
   suggestionOrgs  SuggestionOrg[]
+  retentionAlerts RetentionAlert[]
+  activityMetrics WorkspaceActivityMetric[]
+}
+
+model RetentionAlert {
+  id        String      @id @default(cuid())
+  orgId     String
+  org       CustomerOrg @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  kind      String
+  channel   String?
+  message   String
+  createdBy String?
+  createdAt DateTime    @default(now())
+
+  @@index([orgId])
+  @@index([kind])
+  @@index([createdAt])
+}
+
+// SpotDraft-style workspace usage counters for retention risk analysis.
+// currentCount = last N days, priorCount = previous N days.
+model WorkspaceActivityMetric {
+  id           String      @id @default(cuid())
+  orgId        String
+  org          CustomerOrg @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  activityKey  String
+  label        String
+  currentCount Int         @default(0)
+  priorCount   Int         @default(0)
+  periodDays   Int         @default(30)
+  updatedAt    DateTime    @updatedAt
+  createdAt    DateTime    @default(now())
+
+  @@unique([orgId, activityKey])
+  @@index([orgId])
 }
 
 model SlackChannel {
