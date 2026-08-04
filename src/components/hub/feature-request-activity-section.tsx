@@ -2,13 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  FeatureRequestActivityKind,
-  FeatureRequestSourceType,
-} from "@prisma/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Textarea } from "@/components/ui/input";
+
+type FeatureRequestSourceType = "SLACK" | "JIRA";
+type FeatureRequestActivityKind = "NOTE" | "SLACK" | "JIRA" | "STATUS" | "SYSTEM";
 
 export type ActivitySource = {
   id: string;
@@ -29,7 +28,13 @@ export type ActivityItem = {
   author: { name: string | null; email: string } | null;
 };
 
-const activityKinds = Object.values(FeatureRequestActivityKind);
+const activityKinds: FeatureRequestActivityKind[] = [
+  "NOTE",
+  "SLACK",
+  "JIRA",
+  "STATUS",
+  "SYSTEM",
+];
 
 function toDateTimeLocalValue(iso?: string | null) {
   const d = iso ? new Date(iso) : new Date();

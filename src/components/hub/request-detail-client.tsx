@@ -2,16 +2,15 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  FeatureRequestSourceType,
-  FeatureRequestStatus,
-} from "@prisma/client";
+import type { FeatureRequestStatus } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input, Label, Textarea } from "@/components/ui/input";
 import { RequestStatusBadge, SignalStatusBadge } from "@/components/hub/status-badge";
 import { FeatureRequestActivitySection } from "@/components/hub/feature-request-activity-section";
 import type { ActivityItem } from "@/components/hub/feature-request-activity-section";
+
+type FeatureRequestSourceType = "SLACK" | "JIRA";
 
 type Source = {
   id: string;
@@ -55,8 +54,15 @@ type Detail = {
   roadmapOptions: { id: string; title: string; quarter: string | null }[];
 };
 
-const statuses = Object.values(FeatureRequestStatus);
-const sourceTypes = Object.values(FeatureRequestSourceType);
+const statuses: FeatureRequestStatus[] = [
+  "NEW",
+  "TRIAGED",
+  "PLANNED",
+  "IN_PROGRESS",
+  "SHIPPED",
+  "DECLINED",
+];
+const sourceTypes: FeatureRequestSourceType[] = ["SLACK", "JIRA"];
 
 function toDateInputValue(iso: string | null) {
   if (!iso) return "";

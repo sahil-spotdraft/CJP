@@ -3,11 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  ClmPriority,
-  ClmRequestStatus,
-  FeatureRequestSourceType,
-} from "@prisma/client";
+import type { ClmPriority, ClmRequestStatus } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input, Label, Textarea } from "@/components/ui/input";
@@ -16,9 +12,21 @@ import { FeatureRequestActivitySection } from "@/components/hub/feature-request-
 import type { ActivityItem } from "@/components/hub/feature-request-activity-section";
 import { cn } from "@/lib/utils";
 
-const statuses = Object.values(ClmRequestStatus);
-const priorities = Object.values(ClmPriority);
-const sourceTypes = Object.values(FeatureRequestSourceType);
+type FeatureRequestSourceType = "SLACK" | "JIRA";
+
+const statuses: ClmRequestStatus[] = [
+  "NEW",
+  "DISCUSSED_WITH_PRODUCT",
+  "SHARED_WITH_PRODUCT",
+  "IN_ROADMAP",
+  "CLOSED",
+  "PLANNED",
+  "IN_PROGRESS",
+  "SHIPPED",
+  "DECLINED",
+];
+const priorities: ClmPriority[] = ["CRITICAL", "HIGH", "MEDIUM", "LOW"];
+const sourceTypes: FeatureRequestSourceType[] = ["SLACK", "JIRA"];
 
 type OrgOption = { id: string; name: string; arr: number | null };
 type ConsolidationOption = { id: string; name: string };
