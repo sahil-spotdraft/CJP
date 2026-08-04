@@ -16,6 +16,10 @@ function uniqueArr(orgs: { id: string; arr: number | null }[]) {
   return [...seen.values()].reduce((a, b) => a + b, 0);
 }
 
+function pct(part: number, whole: number) {
+  return whole ? (part / whole) * 100 : 0;
+}
+
 export async function getAnalytics(lens: AnalyticsLens = "global", csOwner?: string) {
   const where: Prisma.ProductRequestWhereInput =
     lens === "csm" && csOwner ? { csOwner } : {};
@@ -35,7 +39,9 @@ export async function getAnalytics(lens: AnalyticsLens = "global", csOwner?: str
     string,
     {
       name: string;
+      feature: string;
       accounts: Map<string, number>;
+      asks: number;
       critical: number;
       statuses: Set<string>;
       inRoadmap: boolean;
@@ -43,7 +49,7 @@ export async function getAnalytics(lens: AnalyticsLens = "global", csOwner?: str
   >();
   const accountMap = new Map<
     string,
-    { name: string; arr: number; asks: number; critical: number }
+    { name: string; arr: number; asks: number; critical: number; neu: number }
   >();
   const csmMap = new Map<
     string,
@@ -51,12 +57,14 @@ export async function getAnalytics(lens: AnalyticsLens = "global", csOwner?: str
   >();
 
   let requestWeightedArr = 0;
+  let criticalWeightedArr = 0;
 
   for (const r of requests) {
     const status = r.status;
     const priority = r.priority ?? "NOT_SET";
     const arr = r.org.arr ?? 0;
     requestWeightedArr += arr;
+    if (priority === "CRITICAL") criticalWeightedArr += arr;
 
     const statusBucket = byStatus.get(status) ?? {
       count: 0,
@@ -76,15 +84,21 @@ export async function getAnalytics(lens: AnalyticsLens = "global", csOwner?: str
     const themeName = r.consolidation?.name ?? "(Unconsolidated)";
     const theme = themeMap.get(themeName) ?? {
       name: themeName,
+      feature: r.consolidation?.feature ?? "Not specified",
       accounts: new Map(),
+      asks: 0,
       critical: 0,
       statuses: new Set(),
       inRoadmap: false,
     };
     theme.accounts.set(r.org.id, arr);
+    theme.asks += 1;
     theme.statuses.add(status);
     if (status === ClmRequestStatus.IN_ROADMAP) theme.inRoadmap = true;
     if (r.priority === ClmPriority.CRITICAL) theme.critical += 1;
+    if (!theme.feature || theme.feature === "Not specified") {
+      theme.feature = r.consolidation?.feature ?? theme.feature;
+    }
     themeMap.set(themeName, theme);
 
     const account = accountMap.get(r.org.id) ?? {
@@ -92,9 +106,11 @@ export async function getAnalytics(lens: AnalyticsLens = "global", csOwner?: str
       arr,
       asks: 0,
       critical: 0,
+      neu: 0,
     };
     account.asks += 1;
     if (r.priority === ClmPriority.CRITICAL) account.critical += 1;
+    if (status === ClmRequestStatus.NEW) account.neu += 1;
     accountMap.set(r.org.id, account);
 
     const owner = r.csOwner || "Unassigned";
@@ -116,13 +132,19 @@ export async function getAnalytics(lens: AnalyticsLens = "global", csOwner?: str
 
   const roadmapThemes = [...themeMap.values()]
     .filter((t) => t.inRoadmap)
-    .map((t) => ({
-      theme: t.name,
-      accounts: t.accounts.size,
-      uniqueArr: uniqueArr(
+    .map((t) => {
+      const unique = uniqueArr(
         [...t.accounts.entries()].map(([id, arr]) => ({ id, arr })),
-      ),
-    }))
+      );
+      return {
+        theme: t.name,
+        feature: t.feature,
+        accounts: t.accounts.size,
+        asks: t.asks,
+        uniqueArr: unique,
+        prize: t.accounts.size * unique,
+      };
+    })
     .sort((a, b) => b.uniqueArr - a.uniqueArr);
 
   const roadmapUniqueArr = (() => {
@@ -134,43 +156,64 @@ export async function getAnalytics(lens: AnalyticsLens = "global", csOwner?: str
     return [...orgs.values()].reduce((a, b) => a + b, 0);
   })();
 
-  const gapBoard = [...themeMap.values()]
-    .filter((t) => !t.inRoadmap && t.accounts.size >= 3)
-    .map((t) => {
-      const unique = uniqueArr(
-        [...t.accounts.entries()].map(([id, arr]) => ({ id, arr })),
-      );
-      return {
-        theme: t.name,
-        accounts: t.accounts.size,
-        uniqueArr: unique,
-        critical: t.critical,
-        statuses: [...t.statuses],
-      };
-    })
-    .sort((a, b) => b.accounts - a.accounts || b.uniqueArr - a.uniqueArr);
-
   const themeScores = [...themeMap.values()]
     .map((t) => {
       const unique = uniqueArr(
         [...t.accounts.entries()].map(([id, arr]) => ({ id, arr })),
       );
+      const prize = t.accounts.size * unique;
       return {
         theme: t.name,
+        feature: t.feature,
         accounts: t.accounts.size,
+        asks: t.asks,
         uniqueArr: unique,
-        score: t.accounts.size * unique,
+        prize,
+        score: prize,
         inRoadmap: t.inRoadmap,
         critical: t.critical,
+        formula: `${t.accounts.size} accounts × ${unique}`,
       };
     })
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 15);
+    .sort((a, b) => b.prize - a.prize || b.accounts - a.accounts);
 
-  const criticalNew = requests
+  const gapBoard = themeScores
+    .filter((t) => !t.inRoadmap && t.accounts >= 3)
+    .map((t) => ({
+      theme: t.theme,
+      feature: t.feature,
+      accounts: t.accounts,
+      asks: t.asks,
+      uniqueArr: t.uniqueArr,
+      prize: t.prize,
+      critical: t.critical,
+      statuses: [...(themeMap.get(t.theme)?.statuses ?? [])],
+      formula: t.formula,
+    }));
+
+  const emergingGaps = themeScores
+    .filter((t) => !t.inRoadmap && t.accounts === 2)
+    .slice(0, 5)
+    .map((t) => ({
+      theme: t.theme,
+      feature: t.feature,
+      accounts: t.accounts,
+      uniqueArr: t.uniqueArr,
+      prize: t.prize,
+      critical: t.critical,
+    }));
+
+  const attentionStatuses: ClmRequestStatus[] = [
+    ClmRequestStatus.NEW,
+    ClmRequestStatus.SHARED_WITH_PRODUCT,
+    ClmRequestStatus.DISCUSSED_WITH_PRODUCT,
+  ];
+
+  const criticalAttention = requests
     .filter(
       (r) =>
-        r.priority === ClmPriority.CRITICAL && r.status === ClmRequestStatus.NEW,
+        r.priority === ClmPriority.CRITICAL &&
+        attentionStatuses.includes(r.status),
     )
     .map((r) => ({
       id: r.id,
@@ -178,6 +221,8 @@ export async function getAnalytics(lens: AnalyticsLens = "global", csOwner?: str
       arr: r.org.arr,
       theme: r.consolidation?.name ?? "—",
       csOwner: r.csOwner,
+      status: r.status,
+      ask: r.ask,
     }))
     .sort((a, b) => (b.arr ?? 0) - (a.arr ?? 0));
 
@@ -196,14 +241,49 @@ export async function getAnalytics(lens: AnalyticsLens = "global", csOwner?: str
     }))
     .sort((a, b) => (b.arr ?? 0) - (a.arr ?? 0));
 
+  const revenueAtRisk = uniqueArr(
+    criticalAttention.map((r) => ({
+      id: r.account,
+      arr: r.arr,
+    })),
+  );
+
+  // Prefer org id based risk when possible
+  const revenueAtRiskUnique = (() => {
+    const orgs = new Map<string, number>();
+    for (const r of requests) {
+      if (
+        r.priority === ClmPriority.CRITICAL &&
+        attentionStatuses.includes(r.status)
+      ) {
+        orgs.set(r.org.id, r.org.arr ?? 0);
+      }
+    }
+    return [...orgs.values()].reduce((a, b) => a + b, 0);
+  })();
+
+  const opportunityPrize = gapBoard.reduce((sum, g) => sum + g.uniqueArr, 0);
+  const topPrize = themeScores[0] ?? null;
+  const neuCount = byStatus.get(ClmRequestStatus.NEW)?.count ?? 0;
+  const criticalCount = byPriority.get("CRITICAL") ?? 0;
+  const arrCoveragePct = pct(roadmapUniqueArr, uniqueBacklogArr);
+  const triageHealth = Math.max(0, Math.round(100 - pct(neuCount, requests.length)));
+  const uncoveredArr = Math.max(uniqueBacklogArr - roadmapUniqueArr, 0);
+  const potentialCoveragePct = pct(
+    roadmapUniqueArr + opportunityPrize,
+    uniqueBacklogArr,
+  );
+
   const accountHeat = [...accountMap.values()]
     .map((a) => ({
       name: a.name,
       arr: a.arr,
       asks: a.asks,
       critical: a.critical,
+      neu: a.neu,
+      heat: a.asks * a.arr,
     }))
-    .sort((a, b) => b.asks - a.asks || b.arr - a.arr)
+    .sort((a, b) => b.heat - a.heat || b.arr - a.arr)
     .slice(0, 20);
 
   const csmLoad = [...csmMap.values()]
@@ -237,7 +317,7 @@ export async function getAnalytics(lens: AnalyticsLens = "global", csOwner?: str
         count: bucket.count,
         weightedArr: bucket.weightedArr,
         uniqueArr: [...bucket.orgs.values()].reduce((a, b) => a + b, 0),
-        pct: requests.length ? (bucket.count / requests.length) * 100 : 0,
+        pct: pct(bucket.count, requests.length),
       },
     ];
   });
@@ -248,27 +328,68 @@ export async function getAnalytics(lens: AnalyticsLens = "global", csOwner?: str
   }));
 
   const epicClusters = [
-    { epic: "Notifications & Digests", match: /notif|digest|email|reminder/i },
+    { epic: "Notifications & Digests", match: /notif|digest|email|reminder|signature/i },
     { epic: "Offboarding & Ownership", match: /bulk update|ooo|ownership|deactiv/i },
-    { epic: "Contract Families / Bundles", match: /bundle|link related|relationship|packet/i },
-    { epic: "Governance & Access", match: /access control|permission|scim|tag management/i },
+    { epic: "Contract Families / Bundles", match: /bundle|link related|relationship|packet|contract/i },
+    { epic: "Governance & Access", match: /access control|permission|scim|tag management|legal user/i },
     { epic: "Express / Campaign UX", match: /express|campaign/i },
     { epic: "Sub-status / Custom Status", match: /status|sub.?status/i },
-  ].map((cluster) => {
-    const themes = [...themeMap.values()].filter((t) => cluster.match.test(t.name));
-    const matched = requests.filter((r) =>
-      cluster.match.test(r.consolidation?.name ?? ""),
-    );
-    return {
-      epic: cluster.epic,
-      themes: themes.length,
-      asks: matched.length,
-      accounts: new Set(matched.map((r) => r.org.id)).size,
-      uniqueArr: uniqueArr(
+  ]
+    .map((cluster) => {
+      const themes = [...themeMap.values()].filter((t) => cluster.match.test(t.name));
+      const matched = requests.filter((r) =>
+        cluster.match.test(r.consolidation?.name ?? ""),
+      );
+      const accounts = new Set(matched.map((r) => r.org.id)).size;
+      const unique = uniqueArr(
         matched.map((r) => ({ id: r.org.id, arr: r.org.arr })),
-      ),
-    };
-  });
+      );
+      return {
+        epic: cluster.epic,
+        themes: themes.length,
+        asks: matched.length,
+        accounts,
+        uniqueArr: unique,
+        prize: accounts * unique,
+      };
+    })
+    .filter((e) => e.asks > 0)
+    .sort((a, b) => b.prize - a.prize);
+
+  const requestDetails = requests
+    .map((request) => ({
+      id: request.id,
+      account: request.org.name,
+      ask: request.ask,
+      consolidation: request.consolidation?.name ?? "Unconsolidated",
+      feature: request.consolidation?.feature ?? "Not specified",
+      arr: request.org.arr ?? 0,
+      priority: request.priority ?? "NOT_SET",
+      status: request.status,
+      csOwner: request.csOwner ?? "Unassigned",
+    }))
+    .sort((a, b) => b.arr - a.arr);
+
+  const analysis = [
+    {
+      title: "What we analyze",
+      body: `We analyze ${requests.length} product requests across ${accountMap.size} accounts using unique ARR (each account counted once), consolidation demand, priority, and pipeline status.`,
+    },
+    {
+      title: "What the prize means",
+      body: topPrize
+        ? `Prize score = #accounts × unique ARR. Top prize today is “${topPrize.theme}” at ${topPrize.accounts} × $${Math.round(topPrize.uniqueArr).toLocaleString()} = ${Math.round(topPrize.prize).toLocaleString()}.`
+        : "Prize score = #accounts × unique ARR. It ranks consolidations by customer reach and revenue weight.",
+    },
+    {
+      title: "Revenue coverage vs opportunity",
+      body: `${Math.round(arrCoveragePct)}% of unique backlog ARR is already represented on the roadmap ($${Math.round(roadmapUniqueArr).toLocaleString()} of $${Math.round(uniqueBacklogArr).toLocaleString()}). Closing current gaps could lift coverage toward ${Math.round(potentialCoveragePct)}%.`,
+    },
+    {
+      title: "Revenue at risk",
+      body: `Critical requests still awaiting a Product decision represent $${Math.round(revenueAtRiskUnique).toLocaleString()} unique ARR across ${criticalAttention.length} asks.`,
+    },
+  ];
 
   return {
     lens,
@@ -279,23 +400,36 @@ export async function getAnalytics(lens: AnalyticsLens = "global", csOwner?: str
       uniqueBacklogArr,
       requestWeightedArr,
       roadmapUniqueArr,
-      critical: byPriority.get("CRITICAL") ?? 0,
-      neu: byStatus.get(ClmRequestStatus.NEW)?.count ?? 0,
-      neuPct: requests.length
-        ? ((byStatus.get(ClmRequestStatus.NEW)?.count ?? 0) / requests.length) * 100
-        : 0,
+      uncoveredArr,
+      opportunityPrize,
+      revenueAtRisk: revenueAtRiskUnique || revenueAtRisk,
+      criticalWeightedArr,
+      critical: criticalCount,
+      neu: neuCount,
+      neuPct: pct(neuCount, requests.length),
+      arrCoveragePct,
+      potentialCoveragePct,
+      triageHealth,
+    },
+    insights: {
+      topPrize,
+      gapCount: gapBoard.length,
+      emergingCount: emergingGaps.length,
+      analysis,
     },
     funnel,
     priorityMix,
     statusPriority,
     roadmapThemes,
     gapBoard,
-    themeScores,
-    criticalNew,
+    emergingGaps,
+    themeScores: themeScores.slice(0, 15),
+    criticalNew: criticalAttention,
     criticalDiscussed,
     accountHeat,
     csmLoad,
     epicClusters,
+    requestDetails,
     csOwners: [...csmMap.keys()].sort(),
   };
 }
