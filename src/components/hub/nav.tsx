@@ -10,6 +10,7 @@ import { NotificationBell } from "@/components/hub/notification-bell";
 const links = [
   { href: "/", label: "Feature Requests" },
   { href: "/analytics", label: "Analytics" },
+  { href: "/retention", label: "Retention" },
   { href: "/consolidation", label: "Consolidation" },
   { href: "/cs-owners", label: "CS Owners" },
   { href: "/orgs", label: "Orgs" },
