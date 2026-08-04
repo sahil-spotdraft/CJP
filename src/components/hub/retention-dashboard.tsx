@@ -26,6 +26,7 @@ export function RetentionDashboard({ data }: Readonly<{ data: RetentionData }>) 
   const [selectedId, setSelectedId] = useState<string | null>(data.atRisk[0]?.id ?? null);
   const [busy, setBusy] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [slackChannelOverride, setSlackChannelOverride] = useState("");
   const [nudgePreview, setNudgePreview] = useState<{
     subject: string;
     body: string;
@@ -55,14 +56,17 @@ export function RetentionDashboard({ data }: Readonly<{ data: RetentionData }>) 
       const res = await fetch("/api/retention/alert", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orgId }),
+        body: JSON.stringify({
+          orgId,
+          channel: slackChannelOverride.trim() || undefined,
+        }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Alert failed");
       setToast(
         json.delivered
-          ? "Slack alert sent to the account channel."
-          : "Alert logged locally (Slack not configured or channel missing).",
+          ? `Slack alert delivered to ${json.channel}.`
+          : "Alert logged locally (Slack not configured or channel missing). Check Recent alerts.",
       );
       router.refresh();
     } catch (err) {
@@ -386,6 +390,22 @@ export function RetentionDashboard({ data }: Readonly<{ data: RetentionData }>) 
                     value={selected.slackChannelName || "Not linked"}
                   />
                 </dl>
+
+                <div>
+                  <label className="mb-1 block text-sm font-medium">
+                    Slack channel for test (optional)
+                  </label>
+                  <input
+                    className="w-full rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm"
+                    placeholder="C0123456789 or #channel-name"
+                    value={slackChannelOverride}
+                    onChange={(e) => setSlackChannelOverride(e.target.value)}
+                  />
+                  <p className="mt-1 text-xs text-[var(--ink-muted)]">
+                    Invite the bot to that channel first. Leave blank to use the
+                    org-linked channel or RETENTION_SLACK_CHANNEL.
+                  </p>
+                </div>
 
                 <div className="flex flex-wrap gap-2">
                   <Link
