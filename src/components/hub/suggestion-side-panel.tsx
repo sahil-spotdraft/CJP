@@ -56,6 +56,51 @@ function formatArr(arr: number | null) {
   return `$${Math.round(arr).toLocaleString()}`;
 }
 
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function ContextLoadingDialog({
+  status,
+  onCancel,
+}: Readonly<{ status: string; onCancel: () => void }>) {
+  return (
+    <div className="absolute inset-0 z-20 flex items-center justify-center bg-[var(--ink)]/35 p-4">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="suggestion-context-title"
+        className="w-full max-w-sm rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-[var(--shadow-lg)]"
+      >
+        <p id="suggestion-context-title" className="font-display text-lg text-[var(--ink)]">
+          Finding related context
+        </p>
+        <p className="mt-1 text-sm text-[var(--ink-muted)]">
+          Resolving workspaces and matching requests for this suggestion.
+        </p>
+
+        <div className="mt-4 rounded-xl border border-dashed border-[var(--accent)]/40 bg-[var(--accent-soft)]/30 p-3">
+          <div className="flex items-center gap-2">
+            <span className="inline-flex h-2 w-2 animate-pulse rounded-full bg-[var(--accent)]" />
+            <p className="text-sm font-medium text-[var(--accent)]">{status}</p>
+          </div>
+          <div className="mt-3 space-y-2">
+            <div className="h-2.5 w-4/5 animate-pulse rounded bg-[var(--border)]" />
+            <div className="h-2.5 w-3/5 animate-pulse rounded bg-[var(--border)]" />
+            <div className="h-2.5 w-2/3 animate-pulse rounded bg-[var(--border)]" />
+          </div>
+        </div>
+
+        <div className="mt-4 flex justify-end">
+          <Button type="button" variant="ghost" onClick={onCancel}>
+            Cancel
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function SuggestionSidePanel({
   suggestionId,
   onClose,
@@ -66,6 +111,8 @@ export function SuggestionSidePanel({
   const [detail, setDetail] = useState<SuggestionDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [contextReady, setContextReady] = useState(false);
+  const [contextStatus, setContextStatus] = useState("Opening suggestion…");
   const [mounted, setMounted] = useState(false);
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
   const [selectedWorkspaceIds, setSelectedWorkspaceIds] = useState<string[]>([]);
@@ -84,7 +131,10 @@ export function SuggestionSidePanel({
 
     async function load() {
       setLoading(true);
+      setContextReady(false);
+      setContextStatus("Loading suggestion…");
       setError(null);
+      setDetail(null);
       try {
         const readRes = await fetch(`/api/suggestions/${suggestionId}/read`, {
           method: "POST",
@@ -99,12 +149,31 @@ export function SuggestionSidePanel({
         setTags((suggestion.tags || []).join(", "));
         setSelectedRequestId(suggestion.matches[0]?.featureRequest.id ?? null);
         setSelectedWorkspaceIds(suggestion.requestingWorkspaces.map((w) => w.id));
+        setLoading(false);
+
+        const steps = [
+          "Looking up requesting workspaces…",
+          `Checking ${suggestion.allWorkspaces.length || "linked"} workspace${suggestion.allWorkspaces.length === 1 ? "" : "s"}…`,
+          suggestion.matches.length
+            ? `Scoring ${suggestion.matches.length} matching request${suggestion.matches.length === 1 ? "" : "s"}…`
+            : "Scanning for similar feature requests…",
+          "Preparing workspace & match results…",
+        ];
+        for (const step of steps) {
+          if (cancelled) return;
+          setContextStatus(step);
+          await sleep(700 + Math.floor(Math.random() * 450));
+        }
+        if (cancelled) return;
+        setContextStatus("Ready");
+        await sleep(250);
+        if (!cancelled) setContextReady(true);
       } catch (e) {
         if (!cancelled) {
           setError(e instanceof Error ? e.message : "Failed to load suggestion");
+          setLoading(false);
+          setContextReady(true);
         }
-      } finally {
-        if (!cancelled) setLoading(false);
       }
     }
 
@@ -123,6 +192,7 @@ export function SuggestionSidePanel({
   }, [onClose]);
 
   const pending = detail?.triageStatus === "PENDING";
+  const showContextDialog = Boolean(detail) && !contextReady && !error;
 
   const selectedMatch = useMemo(
     () => detail?.matches.find((m) => m.featureRequest.id === selectedRequestId) ?? null,
@@ -180,11 +250,15 @@ export function SuggestionSidePanel({
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-5 py-4">
+        <div className="relative flex-1 overflow-y-auto px-5 py-4">
           {error ? <p className="mb-3 text-sm text-[var(--danger)]">{error}</p> : null}
 
           {loading && !detail ? (
             <p className="text-sm text-[var(--ink-muted)]">Loading suggestion details…</p>
+          ) : null}
+
+          {showContextDialog ? (
+            <ContextLoadingDialog status={contextStatus} onCancel={onClose} />
           ) : null}
 
           {detail ? (
@@ -210,6 +284,19 @@ export function SuggestionSidePanel({
                 ) : null}
               </section>
 
+              {!contextReady ? (
+                <section className="space-y-3 rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface-2)]/60 p-4">
+                  <div className="h-3 w-48 animate-pulse rounded bg-[var(--border)]" />
+                  <div className="flex flex-wrap gap-2">
+                    <div className="h-8 w-24 animate-pulse rounded-lg bg-[var(--border)]" />
+                    <div className="h-8 w-28 animate-pulse rounded-lg bg-[var(--border)]" />
+                    <div className="h-8 w-20 animate-pulse rounded-lg bg-[var(--border)]" />
+                  </div>
+                  <div className="h-3 w-40 animate-pulse rounded bg-[var(--border)]" />
+                  <div className="h-20 w-full animate-pulse rounded-xl bg-[var(--border)]" />
+                </section>
+              ) : (
+                <>
               <section className="space-y-3">
                 <div>
                   <h3 className="text-sm font-medium text-[var(--ink)]">
@@ -469,6 +556,8 @@ export function SuggestionSidePanel({
                       ) : null,
                     )}
                 </section>
+              )}
+                </>
               )}
             </div>
           ) : null}

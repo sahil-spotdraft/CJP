@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -66,19 +66,6 @@ function levelBadgeClass(level: ActivityLevel) {
   }
 }
 
-function levelRowClass(level: ActivityLevel) {
-  switch (level) {
-    case "SUCCESS":
-      return "border border-l-[3px] border-emerald-200/80 border-l-emerald-500 bg-emerald-50/60";
-    case "WARNING":
-      return "border border-l-[3px] border-amber-200 border-l-amber-500 bg-amber-50/70";
-    case "CRITICAL":
-      return "border border-l-[3px] border-red-200 border-l-red-500 bg-red-50/70";
-    default:
-      return "border border-[var(--border)] bg-[var(--surface-2)]/70";
-  }
-}
-
 function levelAvatarClass(level: ActivityLevel) {
   switch (level) {
     case "SUCCESS":
@@ -89,19 +76,6 @@ function levelAvatarClass(level: ActivityLevel) {
       return "bg-red-100 text-red-800";
     default:
       return "bg-[var(--accent-soft)] text-[var(--accent)]";
-  }
-}
-
-function levelMessageClass(level: ActivityLevel) {
-  switch (level) {
-    case "SUCCESS":
-      return "border-emerald-200/80";
-    case "WARNING":
-      return "border-amber-200";
-    case "CRITICAL":
-      return "border-red-200";
-    default:
-      return "border-[var(--border)]";
   }
 }
 
@@ -119,14 +93,24 @@ function dateTimeLocalToIso(value: string) {
   return d.toISOString();
 }
 
-function formatOccurredAt(iso: string) {
-  return new Date(iso).toLocaleString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
+function formatTimelineDate(iso: string) {
+  const d = new Date(iso);
+  return {
+    date: d.toLocaleDateString(undefined, {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }),
+    time: d.toLocaleTimeString(undefined, {
+      hour: "numeric",
+      minute: "2-digit",
+    }),
+  };
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function errorMessage(data: unknown) {
@@ -134,6 +118,31 @@ function errorMessage(data: unknown) {
   const err = (data as { error?: unknown }).error;
   if (typeof err === "string" && err.trim()) return err;
   return "Failed to add activity";
+}
+
+function PullSkeleton({ status }: Readonly<{ status: string }>) {
+  return (
+    <article
+      aria-live="polite"
+      className="rounded-[var(--radius-xl)] border border-dashed border-[var(--accent)]/40 bg-[var(--accent-soft)]/30 p-4"
+    >
+      <div className="flex items-start gap-3">
+        <div className="mt-0.5 h-9 w-9 shrink-0 animate-pulse rounded-full bg-[var(--accent-soft)]" />
+        <div className="min-w-0 flex-1 space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex h-2 w-2 animate-pulse rounded-full bg-[var(--accent)]" />
+            <p className="text-sm font-medium text-[var(--accent)]">{status}</p>
+          </div>
+          <div className="h-3 w-40 animate-pulse rounded bg-[var(--border)]" />
+          <div className="mt-2 space-y-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3.5 py-3">
+            <div className="h-3.5 w-3/5 animate-pulse rounded bg-[var(--border)]" />
+            <div className="h-3 w-full animate-pulse rounded bg-[var(--border)]" />
+            <div className="h-3 w-4/5 animate-pulse rounded bg-[var(--border)]" />
+          </div>
+        </div>
+      </div>
+    </article>
+  );
 }
 
 export function FeatureRequestActivitySection({
@@ -147,6 +156,8 @@ export function FeatureRequestActivitySection({
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
+  const [pulling, setPulling] = useState(false);
+  const [pullStatus, setPullStatus] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [kind, setKind] = useState<FeatureRequestActivityKind>("NOTE");
   const [level, setLevel] = useState<ActivityLevel>("INFO");
@@ -159,6 +170,18 @@ export function FeatureRequestActivitySection({
   useEffect(() => {
     setOccurredAt(toDateTimeLocalValue());
   }, []);
+
+  const sortedActivities = useMemo(
+    () =>
+      [...activities].sort(
+        (a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime(),
+      ),
+    [activities],
+  );
+
+  const hasSources = sources.length > 0;
+  const primarySource = sources[0] ?? null;
+  const locked = busy || pulling;
 
   async function addActivity() {
     if (!title.trim()) return;
@@ -208,25 +231,131 @@ export function FeatureRequestActivitySection({
     }
   }
 
+  async function pullFromSource() {
+    if (!primarySource) return;
+    setPulling(true);
+    setError(null);
+
+    const sourceLabel = primarySource.label;
+    const sourceType = primarySource.type;
+    const steps =
+      sourceType === "JIRA"
+        ? [
+            `Connecting to Jira · ${sourceLabel}…`,
+            `Fetching issue comments from ${sourceLabel}…`,
+            `Reading timeline events…`,
+            `Importing update into this request…`,
+          ]
+        : [
+            `Connecting to Slack · ${sourceLabel}…`,
+            `Fetching recent messages from ${sourceLabel}…`,
+            `Scanning thread history…`,
+            `Importing update into this request…`,
+          ];
+
+    try {
+      for (let i = 0; i < steps.length - 1; i += 1) {
+        setPullStatus(steps[i]!);
+        await sleep(650 + Math.floor(Math.random() * 450));
+      }
+      setPullStatus(steps[steps.length - 1]!);
+
+      const res = await fetch(`/api/requests/${featureRequestId}/activities/pull`, {
+        method: "POST",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(errorMessage(data) || "Failed to pull from source");
+        return;
+      }
+
+      setPullStatus(`Loaded update from ${sourceLabel}`);
+      await sleep(350);
+      router.refresh();
+    } catch {
+      setError("Failed to pull from source");
+    } finally {
+      setPulling(false);
+      setPullStatus("");
+    }
+  }
+
   return (
     <section className="rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] p-6">
-      <h2 className="font-display text-2xl">Activity</h2>
-      <p className="mt-1 text-sm text-[var(--ink-muted)]">
-        Message-style updates from Slack, Jira, or the team. Level marks concern so you can scan feature health.
-      </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="font-display text-2xl">Activity</h2>
+          <p className="mt-1 text-sm text-[var(--ink-muted)]">
+            Updates pulled from linked sources, with exact dates so you can follow the timeline.
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="secondary"
+          disabled={locked || !hasSources}
+          onClick={() => void pullFromSource()}
+          title={
+            hasSources
+              ? primarySource
+                ? `Fetch latest updates from ${primarySource.type}: ${primarySource.label}`
+                : "Pull from linked source"
+              : "Add a linked source first"
+          }
+        >
+          {pulling ? "Fetching…" : "Pull from source"}
+        </Button>
+      </div>
+
+      {hasSources ? (
+        <p className="mt-2 text-xs text-[var(--ink-muted)]">
+          Sources:{" "}
+          {sources.map((s, i) => (
+            <span key={s.id}>
+              {i > 0 ? " · " : null}
+              <a
+                href={s.url}
+                target="_blank"
+                rel="noreferrer"
+                className="text-[var(--accent)] underline"
+              >
+                {s.type}: {s.label}
+              </a>
+            </span>
+          ))}
+        </p>
+      ) : null}
 
       {error ? <p className="mt-3 text-sm text-[var(--danger)]">{error}</p> : null}
 
       <div className="mt-4 space-y-3">
-        {activities.map((item) => {
+        {pulling ? <PullSkeleton status={pullStatus || "Fetching from source…"} /> : null}
+
+        {sortedActivities.map((item) => {
           const authorLabel = item.author?.name || item.author?.email || "System";
           const level = item.level ?? "INFO";
+          const timeline = formatTimelineDate(item.occurredAt);
           return (
             <article
               key={item.id}
               className="rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface-2)]/70 p-4"
             >
               <div className="flex items-start gap-3">
+                <div className="flex w-[5.5rem] shrink-0 flex-col items-start pt-0.5">
+                  <time
+                    dateTime={item.occurredAt}
+                    className="text-[11px] font-semibold leading-tight text-[var(--ink)]"
+                    suppressHydrationWarning
+                  >
+                    {timeline.date}
+                  </time>
+                  <time
+                    dateTime={item.occurredAt}
+                    className="mt-0.5 text-[11px] font-medium text-[var(--ink-muted)]"
+                    suppressHydrationWarning
+                  >
+                    {timeline.time}
+                  </time>
+                </div>
                 <div
                   aria-hidden
                   className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${levelAvatarClass(level)}`}
@@ -252,13 +381,6 @@ export function FeatureRequestActivitySection({
                         {item.source.label}
                       </a>
                     ) : null}
-                    <time
-                      dateTime={item.occurredAt}
-                      className="text-xs font-medium text-[var(--ink-muted)]"
-                      suppressHydrationWarning
-                    >
-                      {formatOccurredAt(item.occurredAt)}
-                    </time>
                   </div>
                   <div className="mt-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3.5 py-2.5 shadow-sm">
                     <p className="text-sm font-medium text-[var(--ink)]">{item.title}</p>
@@ -272,7 +394,7 @@ export function FeatureRequestActivitySection({
                 <Button
                   type="button"
                   variant="ghost"
-                  disabled={busy}
+                  disabled={locked}
                   onClick={() => removeActivity(item.id)}
                   className="shrink-0 text-[var(--danger)]"
                 >
@@ -282,8 +404,10 @@ export function FeatureRequestActivitySection({
             </article>
           );
         })}
-        {activities.length === 0 ? (
-          <p className="text-sm text-[var(--ink-muted)]">No activity messages yet.</p>
+        {!pulling && sortedActivities.length === 0 ? (
+          <p className="text-sm text-[var(--ink-muted)]">
+            No activity yet. Pull from a linked source to load the timeline.
+          </p>
         ) : null}
       </div>
 
@@ -353,7 +477,7 @@ export function FeatureRequestActivitySection({
               onChange={(e) => setTitle(e.target.value)}
               placeholder="What happened?"
               onKeyDown={(e) => {
-                if (e.key === "Enter" && title.trim() && !busy) {
+                if (e.key === "Enter" && title.trim() && !locked) {
                   e.preventDefault();
                   void addActivity();
                 }
@@ -375,7 +499,7 @@ export function FeatureRequestActivitySection({
           <Button
             type="button"
             variant="secondary"
-            disabled={busy || !title.trim()}
+            disabled={locked || !title.trim()}
             onClick={() => void addActivity()}
           >
             {busy ? "Posting…" : "Post message"}

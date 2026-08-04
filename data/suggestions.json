@@ -35,12 +35,12 @@
     },
     {
       "id": "csv-export-reports",
-      "title": "Export reports to CSV",
+      "title": "Export CSV",
       "summary": "Customers want to download analytics reports as CSV for offline analysis.",
       "status": "NEW",
       "sourceLabel": "slack",
       "tags": ["reporting", "export"],
-      "workspaces": [{ "slug": "acme", "name": "Acme Corp" }],
+      "workspaces": [{ "slug": "cjp-customer-org", "name": "CJP Customer Org" }],
       "slackMessage": "Feature Request:\nWould be great if we could export our weekly reports to CSV. Right now we have to screenshot everything.\n\nCC: @pt",
       "linkedRequests": [
         {

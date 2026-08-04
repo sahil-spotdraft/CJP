@@ -18,7 +18,19 @@ ALTER TABLE "FeatureSignal" ADD COLUMN IF NOT EXISTS "aiTriageRationale" TEXT;
 -- AlterTable ProductRequest
 ALTER TABLE "ProductRequest" ADD COLUMN IF NOT EXISTS "dueDate" TIMESTAMP(3);
 
-CREATE INDEX IF NOT EXISTS "ProductRequest_csOwner_idx" ON "ProductRequest"("csOwner");
+-- Legacy free-text csOwner may already have been migrated to csOwnerId.
+DO $$ BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'ProductRequest'
+      AND column_name = 'csOwner'
+  ) THEN
+    CREATE INDEX IF NOT EXISTS "ProductRequest_csOwner_idx" ON "ProductRequest"("csOwner");
+  END IF;
+END $$;
+
 CREATE INDEX IF NOT EXISTS "ProductRequest_priority_idx" ON "ProductRequest"("priority");
 
 -- CreateTable ProductRequestActivity

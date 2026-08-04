@@ -188,7 +188,11 @@ export function ProductRequestsHomeTable({
                       ))}
                     </div>
                   </td>
-                  <td className="px-4 py-3 max-w-[280px] font-medium">{row.ask}</td>
+                  <td className="px-4 py-3 align-top font-medium">
+                    <div className="max-w-[280px] whitespace-normal break-words">
+                      {row.ask}
+                    </div>
+                  </td>
                   <td className="px-4 py-3">
                     {row.csOwner ? (
                       <div>
