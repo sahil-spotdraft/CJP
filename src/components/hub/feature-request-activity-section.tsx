@@ -224,11 +224,7 @@ export function FeatureRequestActivitySection({
           return (
             <article
               key={item.id}
-<<<<<<< HEAD
-              className={`rounded-2xl border p-4 ${levelRowClass(level)}`}
-=======
               className="rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface-2)]/70 p-4"
->>>>>>> e0757e0e00baef39fdf25b0a9cfe4caf308ac8d3
             >
               <div className="flex items-start gap-3">
                 <div
@@ -264,13 +260,7 @@ export function FeatureRequestActivitySection({
                       {formatOccurredAt(item.occurredAt)}
                     </time>
                   </div>
-<<<<<<< HEAD
-                  <div
-                    className={`mt-2 rounded-xl border bg-white px-3.5 py-2.5 shadow-sm ${levelMessageClass(level)}`}
-                  >
-=======
                   <div className="mt-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3.5 py-2.5 shadow-sm">
->>>>>>> e0757e0e00baef39fdf25b0a9cfe4caf308ac8d3
                     <p className="text-sm font-medium text-[var(--ink)]">{item.title}</p>
                     {item.body ? (
                       <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-[var(--ink-muted)]">
