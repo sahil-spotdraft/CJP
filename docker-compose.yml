@@ -38,6 +38,9 @@ services:
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
       OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
       CLASSIFIER_CONFIDENCE_THRESHOLD: ${CLASSIFIER_CONFIDENCE_THRESHOLD:-0.7}
+      CURSOR_API_KEY: ${CURSOR_API_KEY:-}
+      CURSOR_AGENT_ENABLED: ${CURSOR_AGENT_ENABLED:-true}
+      CURSOR_AGENT_MODEL: ${CURSOR_AGENT_MODEL:-composer-2.5}
     depends_on:
       db:
         condition: service_healthy

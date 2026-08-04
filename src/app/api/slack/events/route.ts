@@ -1,8 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
+import { spawnSlackCursorAgent, toAgentPayload } from "@/lib/cursor/spawn-agent";
+import { hasSlackSigningSecret } from "@/lib/env";
 import { handleSlackMessage, type IncomingSlackMessage } from "@/lib/services/ingest";
 import { verifySlackSignature } from "@/lib/slack/verify";
 
 export const runtime = "nodejs";
+export const maxDuration = 300;
 
 type SlackEventPayload = {
   type?: string;
@@ -24,24 +27,39 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ challenge: payload.challenge });
   }
 
-  const valid = verifySlackSignature({
-    signature: req.headers.get("x-slack-signature"),
-    timestamp: req.headers.get("x-slack-request-timestamp"),
-    rawBody,
-  });
-
-  if (!valid) {
-    return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+  if (hasSlackSigningSecret()) {
+    const valid = verifySlackSignature({
+      signature: req.headers.get("x-slack-signature"),
+      timestamp: req.headers.get("x-slack-request-timestamp"),
+      rawBody,
+    });
+    if (!valid) {
+      return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+    }
+  } else {
+    console.warn("SLACK_SIGNING_SECRET missing — skipping signature verification (dev only)");
   }
 
   if (payload.type === "event_callback" && payload.event?.type === "message") {
-    // Acknowledge quickly; process inline for simplicity in v1.
-    // Slack retries if we exceed ~3s; keep classification fast / heuristic fallback.
-    try {
-      await handleSlackMessage(payload.event);
-    } catch (error) {
-      console.error("Slack message handling failed", error);
-    }
+    const event = payload.event;
+    const agentPayload = toAgentPayload(event);
+
+    // Fast structured ingest (heuristic/OpenAI) — keep as backup path.
+    after(async () => {
+      try {
+        await handleSlackMessage(event);
+      } catch (error) {
+        console.error("Slack message handling failed", error);
+      }
+
+      if (!agentPayload) return;
+      try {
+        const result = await spawnSlackCursorAgent(agentPayload);
+        console.log("Cursor agent result", result);
+      } catch (error) {
+        console.error("Cursor agent spawn failed", error);
+      }
+    });
   }
 
   return NextResponse.json({ ok: true });

@@ -42,6 +42,13 @@ enum FeatureRequestActivityKind {
   SYSTEM
 }
 
+enum ActivityLevel {
+  INFO
+  SUCCESS
+  WARNING
+  CRITICAL
+}
+
 enum ClassificationJobStatus {
   PENDING
   COMPLETED
@@ -193,6 +200,7 @@ model FeatureRequestActivity {
   featureRequestId String
   featureRequest   FeatureRequest              @relation(fields: [featureRequestId], references: [id], onDelete: Cascade)
   kind             FeatureRequestActivityKind  @default(NOTE)
+  level            ActivityLevel               @default(INFO)
   title            String
   body             String?
   occurredAt       DateTime                    @default(now())
@@ -204,6 +212,7 @@ model FeatureRequestActivity {
 
   @@index([featureRequestId, occurredAt])
   @@index([sourceId])
+  @@index([level])
 }
 
 // Demo "suggestion" from a Slack ask — same core fields as FeatureRequest,

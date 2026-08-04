@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 
 const createSchema = z.object({
   kind: z.enum(["NOTE", "SLACK", "JIRA", "STATUS", "SYSTEM"]).default("NOTE"),
+  level: z.enum(["INFO", "SUCCESS", "WARNING", "CRITICAL"]).default("INFO"),
   title: z.string().min(1),
   body: z.string().optional(),
   occurredAt: z.string().min(1).optional(),
@@ -77,6 +78,7 @@ export async function POST(
     data: {
       featureRequestId: id,
       kind: body.data.kind,
+      level: body.data.level,
       title: body.data.title.trim(),
       body: body.data.body?.trim() || null,
       occurredAt,

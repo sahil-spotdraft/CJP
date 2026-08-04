@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "engines": {
-    "node": ">=20"
+    "node": ">=22.13"
   },
   "scripts": {
     "dev": "next dev",
@@ -16,12 +16,17 @@
     "db:studio": "prisma studio",
     "demo:suggestion": "tsx scripts/seed-demo-suggestion.ts",
     "demo:activity": "tsx scripts/seed-demo-activity.ts",
+    "agent:test": "tsx scripts/test-cursor-agent.ts",
+    "slack:poll": "tsx scripts/slack-poller.ts",
+    "slack:poll:once": "tsx scripts/slack-poller.ts --once",
+    "slack:mcp-sync": "tsx scripts/slack-mcp-sync.ts",
     "postinstall": "prisma generate"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
+    "@cursor/sdk": "^1.0.26",
     "@prisma/client": "^6.19.3",
     "@slack/web-api": "^7.19.0",
     "bcryptjs": "^3.0.3",
