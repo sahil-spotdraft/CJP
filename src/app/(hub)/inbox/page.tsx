@@ -5,16 +5,52 @@ import { prisma } from "@/lib/db";
 import { Badge } from "@/components/ui/badge";
 import { SignalStatusBadge } from "@/components/hub/status-badge";
 import { PageHeader } from "@/components/ui/page-header";
+import { Select } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
-export default async function InboxPage() {
-  const signals = await prisma.featureSignal.findMany({
-    where: { status: FeatureSignalStatus.PENDING },
-    include: { org: true, channel: true },
-    orderBy: { createdAt: "desc" },
-    take: 50,
-  });
+interface InboxPageProps {
+  searchParams: Promise<{
+    search?: string;
+    orgId?: string;
+    sort?: "newest" | "oldest" | "confidence";
+  }>;
+}
+
+export default async function InboxPage({ searchParams }: InboxPageProps) {
+  const { search, orgId, sort = "newest" } = await searchParams;
+
+  const where: { status: FeatureSignalStatus; orgId?: string; OR?: Array<{ aiTitle?: { contains: string; mode: "insensitive" }; aiSummary?: { contains: string; mode: "insensitive" }; rawText?: { contains: string; mode: "insensitive" }> } } = {
+    status: FeatureSignalStatus.PENDING,
+  };
+
+  if (orgId) where.orgId = orgId;
+  if (search) {
+    where.OR = [
+      { aiTitle: { contains: search, mode: "insensitive" } },
+      { aiSummary: { contains: search, mode: "insensitive" } },
+      { rawText: { contains: search, mode: "insensitive" } },
+    ];
+  }
+
+  const orderBy =
+    sort === "oldest"
+      ? { createdAt: "asc" as const }
+      : sort === "confidence"
+      ? { aiConfidence: "desc" as const }
+      : { createdAt: "desc" as const };
+
+  const [signals, orgs] = await Promise.all([
+    prisma.featureSignal.findMany({
+      where,
+      include: { org: true, channel: true },
+      orderBy,
+      take: 50,
+    }),
+    prisma.organization.findMany({ orderBy: { name: "asc" } }),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -22,6 +58,63 @@ export default async function InboxPage() {
         title="Inbox"
         description="Pending Slack detections waiting to be matched or created as feature requests."
       />
+
+      <div className="flex flex-wrap gap-3">
+        <Input
+          placeholder="Search title, summary, or raw text..."
+          value={search || ""}
+          onChange={(e) => {
+            const params = new URLSearchParams(window.location.search);
+            if (e.target.value) params.set("search", e.target.value);
+            else params.delete("search");
+            params.delete("page");
+            window.location.search = params.toString();
+          }}
+          className="max-w-xs"
+        />
+        <Select
+          value={orgId || ""}
+          onValueChange={(value) => {
+            const params = new URLSearchParams(window.location.search);
+            if (value) params.set("orgId", value);
+            else params.delete("orgId");
+            params.delete("page");
+            window.location.search = params.toString();
+          }}
+          className="max-w-xs"
+        >
+          <Select.Trigger className="w-full">
+            <Select.Value placeholder="Filter by organization" />
+          </Select.Trigger>
+          <Select.Content>
+            <Select.Item value="">All organizations</Select.Item>
+            {orgs.map((org) => (
+              <Select.Item key={org.id} value={org.id}>
+                {org.name}
+              </Select.Item>
+            ))}
+          </Select.Content>
+        </Select>
+        <Select
+          value={sort}
+          onValueChange={(value) => {
+            const params = new URLSearchParams(window.location.search);
+            params.set("sort", value);
+            params.delete("page");
+            window.location.search = params.toString();
+          }}
+          className="max-w-xs"
+        >
+          <Select.Trigger className="w-full">
+            <Select.Value placeholder="Sort" />
+          </Select.Trigger>
+          <Select.Content>
+            <Select.Item value="newest">Newest first</Select.Item>
+            <Select.Item value="oldest">Oldest first</Select.Item>
+            <Select.Item value="confidence">Highest confidence</Select.Item>
+          </Select.Content>
+        </Select>
+      </div>
 
       {signals.length === 0 ? (
         <div className="rounded-[var(--radius-xl)] border border-dashed border-[var(--border)] bg-[var(--surface)] p-10 text-center text-[var(--ink-muted)]">
